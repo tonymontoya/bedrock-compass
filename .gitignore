@@ -1,0 +1,20 @@
+# --- private / local environment (never commit) ---
+local/
+*.local.md
+*.local.yaml
+*.local.yml
+.env
+*.env
+
+# --- build artifacts ---
+dist/
+out/
+bedrock-compass
+*.test
+coverage.out
+
+# --- editor / OS noise ---
+.DS_Store
+*.swp
+.idea/
+.vscode/
