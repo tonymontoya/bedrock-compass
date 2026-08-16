@@ -69,8 +69,9 @@ gofmt -l .
 ```
 
 **`go test ./...`, `go vet ./...`, and `gofmt -l .` must all be clean
-before any commit.** Run them after every change; there is no CI — these are
-the only enforcement.
+before any commit.** Run them after every change (the Makefile `check`
+target runs all of them plus the static build). CI runs the same trio on
+every push and PR — green locally, green upstream.
 
 ## 4. Doc status system
 

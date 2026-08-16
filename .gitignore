@@ -9,7 +9,7 @@ local/
 # --- build artifacts ---
 dist/
 out/
-bedrock-compass
+/bedrock-compass
 *.test
 coverage.out
 
