@@ -43,6 +43,10 @@ type toastTickMsg struct{ now time.Time }
 // statusTickMsg triggers a poll of the status provider (ticket #4).
 type statusTickMsg struct{}
 
+// statusMsg carries a fresh Status snapshot to the active screen (the
+// dashboard, ticket #5) so its tiles stay in sync with the status bar.
+type statusMsg compass.Status
+
 const (
 	toastPoll  = 500 * time.Millisecond
 	toastTTL   = 4 * time.Second
@@ -78,6 +82,18 @@ func defaultScreens() []Screen {
 func (a *App) Ask(title, consequence string, tier Tier, target string, run func() tea.Cmd) {
 	a.confirm = NewConfirm(title, consequence, tier, target)
 	a.action = run
+}
+
+// GoTo switches to the tab whose label matches (a no-op if none does). It is
+// how a screen routes the operator to the screen that owns an action (D10),
+// e.g. the dashboard's quick actions jump to Backups or Server.
+func (a *App) GoTo(label string) {
+	for i, s := range a.Screens {
+		if s.Tab() == label {
+			a.switchTab(i)
+			return
+		}
+	}
 }
 
 // SetStatus updates the status bar (the telemetry core, ticket #4, drives it).
@@ -126,6 +142,34 @@ func (a *App) ticks() tea.Cmd {
 	}
 }
 
+// broadcastStatus refreshes the status from the provider and forwards the
+// snapshot to the active screen, so the dashboard tiles (ticket #5) and the
+// status bar always show the same data.
+func (a *App) broadcastStatus() {
+	if a.statusProvider == nil {
+		return
+	}
+	s := a.statusProvider()
+	a.status = s
+	ns, _ := a.Screens[a.active].Update(statusMsg(s))
+	if sc, ok := ns.(Screen); ok {
+		a.Screens[a.active] = sc
+	}
+}
+
+// switchTab moves to the tab at idx (clamped) and re-broadcasts the current
+// status so the newly active screen is current immediately.
+func (a *App) switchTab(idx int) {
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= len(a.Screens) {
+		idx = len(a.Screens) - 1
+	}
+	a.active = idx
+	a.broadcastStatus()
+}
+
 // Update routes one message: window size, toast ticks, and keys are handled
 // by the shell; everything else goes to the active screen.
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -137,9 +181,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.toasts.Prune(m.now)
 		return a, a.ticks()
 	case statusTickMsg:
-		if a.statusProvider != nil {
-			a.SetStatus(a.statusProvider())
-		}
+		a.broadcastStatus()
 		return a, a.ticks()
 	case tea.KeyMsg:
 		return a.updateKey(m)
@@ -194,21 +236,20 @@ func (a *App) updateKey(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case isRune(key, 'q'):
 		return a, tea.Quit
 	case key.Type == tea.KeyLeft || isRune(key, '['):
-		a.active = max(a.active-1, 0)
+		a.switchTab(a.active - 1)
 		return a, nil
 	case key.Type == tea.KeyRight || isRune(key, ']'):
-		a.active = min(a.active+1, len(a.Screens)-1)
+		a.switchTab(a.active + 1)
 		return a, nil
 	case key.Type == tea.KeyTab:
-		a.active = min(a.active+1, len(a.Screens)-1)
+		a.switchTab(a.active + 1)
 		return a, nil
 	case key.Type == tea.KeyShiftTab:
-		a.active = max(a.active-1, 0)
+		a.switchTab(a.active - 1)
 		return a, nil
 	case isDigit(key):
-		idx := int(key.Runes[0] - '1')
-		if idx < len(a.Screens) {
-			a.active = idx
+		if idx := int(key.Runes[0] - '1'); idx >= 0 && idx < len(a.Screens) {
+			a.switchTab(idx)
 		}
 		return a, nil
 	}

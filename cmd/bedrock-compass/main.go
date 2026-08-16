@@ -44,10 +44,36 @@ func main() {
 	if t, terr := compass.NewTelemetry(ctx, cfg, 2*time.Second); terr == nil {
 		telemetry = t
 		t.Start(ctx)
-		app.SetStatusProvider(t.Latest)
 	} else {
 		fmt.Fprintln(os.Stderr, "bedrock-compass: telemetry degraded:", terr)
 	}
+
+	// Status provider (ticket #4): one poller drives the status bar and is
+	// broadcast to the active screen, so the dashboard tiles (ticket #5) and
+	// the status bar always agree. Degrades to "stopped" if telemetry failed.
+	statusProvider := func() compass.Status {
+		if telemetry != nil {
+			return telemetry.Latest()
+		}
+		return compass.Status{State: "stopped"}
+	}
+	app.SetStatusProvider(statusProvider)
+
+	// Recent operations (D11): the audit trail, read-only. A missing trail just
+	// means the dashboard panel shows "no operations yet".
+	var recent func() []compass.Event
+	if trail, err := compass.NewTrail(cfg.AuditFile); err == nil {
+		recent = func() []compass.Event {
+			evs, rerr := trail.Recent(10)
+			if rerr != nil {
+				return nil
+			}
+			return evs
+		}
+	}
+
+	// Dashboard (ticket #5): swap the placeholder for the real screen.
+	app.Screens[0] = tui.NewDashboard(app, recent)
 
 	prog := tea.NewProgram(app, tea.WithAltScreen())
 	if _, runErr := prog.Run(); runErr != nil {

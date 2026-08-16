@@ -25,4 +25,10 @@ var (
 	toastInfo    = lipgloss.NewStyle().Foreground(colText)
 	toastErr     = lipgloss.NewStyle().Foreground(colErr)
 	confirmBox   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(colAccent).Padding(1)
+
+	// Dashboard (ticket #5) tile + panel styles.
+	tileLabel   = lipgloss.NewStyle().Foreground(colMuted).Width(16)
+	tileSection = lipgloss.NewStyle().Bold(true).Foreground(colAccent).MarginTop(1)
+	eventOK     = lipgloss.NewStyle().Foreground(colOK)
+	eventErr    = lipgloss.NewStyle().Foreground(colErr)
 )
