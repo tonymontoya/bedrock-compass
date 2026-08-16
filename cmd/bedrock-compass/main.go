@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/tonymontoya/bedrock-compass/compass"
 	"github.com/tonymontoya/bedrock-compass/internal/tui"
 )
 
@@ -27,9 +30,36 @@ func main() {
 		return
 	}
 
-	prog := tea.NewProgram(tui.NewApp(), tea.WithAltScreen())
-	if _, err := prog.Run(); err != nil {
-		fmt.Fprintln(os.Stderr, "bedrock-compass:", err)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cfg, err := compass.LoadStandard()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "bedrock-compass: config:", err)
 		os.Exit(1)
+	}
+
+	app := tui.NewApp()
+	var telemetry *compass.Telemetry
+	if t, terr := compass.NewTelemetry(ctx, cfg, 2*time.Second); terr == nil {
+		telemetry = t
+		t.Start(ctx)
+		app.SetStatusProvider(t.Latest)
+	} else {
+		fmt.Fprintln(os.Stderr, "bedrock-compass: telemetry degraded:", terr)
+	}
+
+	prog := tea.NewProgram(app, tea.WithAltScreen())
+	if _, runErr := prog.Run(); runErr != nil {
+		cancel()
+		if telemetry != nil {
+			<-telemetry.Wait()
+		}
+		fmt.Fprintln(os.Stderr, "bedrock-compass:", runErr)
+		os.Exit(1)
+	}
+	cancel()
+	if telemetry != nil {
+		<-telemetry.Wait()
 	}
 }

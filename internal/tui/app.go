@@ -25,10 +25,11 @@ type App struct {
 	width   int
 	height  int
 
-	status  compass.Status
-	toasts  ToastStack
-	confirm *Confirm
-	action  func() tea.Cmd // pending action, run only on confirm
+	status         compass.Status
+	statusProvider func() compass.Status // polled on a tick (ticket #4)
+	toasts         ToastStack
+	confirm        *Confirm
+	action         func() tea.Cmd // pending action, run only on confirm
 
 	// searchOpen/searchBuf implement the shell-level "/" search (D10), a
 	// filter the active screen's list will honor once real screens land.
@@ -39,9 +40,13 @@ type App struct {
 // toastTickMsg carries the current time so toast expiry is deterministic.
 type toastTickMsg struct{ now time.Time }
 
+// statusTickMsg triggers a poll of the status provider (ticket #4).
+type statusTickMsg struct{}
+
 const (
-	toastPoll = 500 * time.Millisecond
-	toastTTL  = 4 * time.Second
+	toastPoll  = 500 * time.Millisecond
+	toastTTL   = 4 * time.Second
+	statusPoll = 2 * time.Second
 )
 
 // NewApp builds the shell. With no arguments it uses the 8 placeholder
@@ -83,8 +88,8 @@ func (a *App) Toast(msg string, kind ToastKind) {
 	a.toasts.Add(time.Now(), msg, kind, toastTTL)
 }
 
-// Init returns the shell's startup command (none unless a toast is live).
-func (a *App) Init() tea.Cmd { return a.toastTick() }
+// Init returns the shell's startup command (live periodic ticks, if any).
+func (a *App) Init() tea.Cmd { return a.ticks() }
 
 func (a *App) toastTick() tea.Cmd {
 	if !a.toasts.Active() {
@@ -93,16 +98,49 @@ func (a *App) toastTick() tea.Cmd {
 	return tea.Tick(toastPoll, func(t time.Time) tea.Msg { return toastTickMsg{now: t} })
 }
 
+// SetStatusProvider sets a provider the shell polls on a tick to keep the
+// status bar live (ticket #4). nil disables polling.
+func (a *App) SetStatusProvider(fn func() compass.Status) { a.statusProvider = fn }
+
+func (a *App) statusTick() tea.Cmd {
+	return tea.Tick(statusPoll, func(time.Time) tea.Msg { return statusTickMsg{} })
+}
+
+// ticks returns the batch of live periodic commands (toast expiry and status
+// polling), or nil when none are active.
+func (a *App) ticks() tea.Cmd {
+	var cmds []tea.Cmd
+	if a.toasts.Active() {
+		cmds = append(cmds, a.toastTick())
+	}
+	if a.statusProvider != nil {
+		cmds = append(cmds, a.statusTick())
+	}
+	switch len(cmds) {
+	case 0:
+		return nil
+	case 1:
+		return cmds[0]
+	default:
+		return tea.Batch(cmds...)
+	}
+}
+
 // Update routes one message: window size, toast ticks, and keys are handled
 // by the shell; everything else goes to the active screen.
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.width, a.height = m.Width, m.Height
-		return a, a.toastTick()
+		return a, a.ticks()
 	case toastTickMsg:
 		a.toasts.Prune(m.now)
-		return a, a.toastTick()
+		return a, a.ticks()
+	case statusTickMsg:
+		if a.statusProvider != nil {
+			a.SetStatus(a.statusProvider())
+		}
+		return a, a.ticks()
 	case tea.KeyMsg:
 		return a.updateKey(m)
 	}

@@ -190,3 +190,33 @@ func TestApp_RunsAndQuits(t *testing.T) {
 		t.Fatalf("run: %v", err)
 	}
 }
+
+func TestStatusProvider_Poll(t *testing.T) {
+	a := NewApp()
+	called := 0
+	a.SetStatusProvider(func() compass.Status {
+		called++
+		return compass.Status{State: "running", Name: "Live", Version: "1.26.43", Online: 3, Max: 5}
+	})
+	a.Update(statusTickMsg{})
+	if a.status.State != "running" || a.status.Name != "Live" {
+		t.Fatalf("status not updated by provider: %+v", a.status)
+	}
+	if called != 1 {
+		t.Errorf("provider called %d times, want 1", called)
+	}
+}
+
+func TestTicks_BatchesProviderAndToasts(t *testing.T) {
+	a := NewApp()
+	a.SetStatusProvider(func() compass.Status { return compass.Status{State: "running"} })
+	a.Toast("hi", ToastInfo)
+	if cmd := a.ticks(); cmd == nil {
+		t.Fatal("expected a live tick batch (status + toast)")
+	}
+	// With neither active, ticks is nil.
+	b := NewApp()
+	if cmd := b.ticks(); cmd != nil {
+		t.Error("no provider/toast should yield a nil tick")
+	}
+}
