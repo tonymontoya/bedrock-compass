@@ -18,3 +18,4 @@ coverage.out
 *.swp
 .idea/
 .vscode/
+.tmp/

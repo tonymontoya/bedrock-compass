@@ -32,3 +32,14 @@ behind one `console` interface so both work.
 - - Requires the one-time unit change (done once, documented).
 - - Journal reading requires access to the systemd journal (local root or
   `systemd-journal` group) — a documented install requirement.
+
+## Command framing (added 2026-08-16, ticket #2)
+Verified live against BDS 1.26.43: the console has **no prompt, no echo,
+no completion** — a command's output is an unprefixed or `[ts LEVEL]`-
+prefixed burst of lines with no end marker. Completion is therefore
+detected by **output quiescence** (no new lines for ~500 ms), hard-capped
+by a timeout (~15 s): send = baseline (journal cursor / pane capture) →
+write line → poll new output → stop when quiet. A unit under systemd with
+`StandardInput=socket` **must** set `StandardOutput=journal`
+explicitly, or systemd defaults stdout to the FIFO and the server parks
+its log lines in `Dedicated_Server.txt` instead of the journal.
