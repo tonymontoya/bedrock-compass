@@ -40,6 +40,9 @@ type Config struct {
 	IncludePacks bool `yaml:"include-packs"`
 	// Port is the server's UDP port; 0 = autodiscover from server.properties.
 	Port int `yaml:"port"`
+	// ConsoleFif is the path to the server's console FIFO (ADR-0001).
+	// Empty = /run/bedrock-console.fifo.
+	ConsoleFif string `yaml:"console-fif"`
 }
 
 func defaults() *Config {
@@ -49,6 +52,7 @@ func defaults() *Config {
 		BackupDir:  filepath.Join(home, ".local", "share", "bedrock-compass", "backups"),
 		Retention:  7,
 		AuditFile:  filepath.Join(home, ".local", "state", "bedrock-compass", "audit.jsonl"),
+		ConsoleFif: "/run/bedrock-console.fifo",
 	}
 }
 

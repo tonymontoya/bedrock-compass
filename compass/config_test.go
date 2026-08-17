@@ -164,3 +164,24 @@ func TestLoad_PortDefault(t *testing.T) {
 		t.Errorf("Port default = %d, want 0 (autodiscover)", cfg.Port)
 	}
 }
+
+func TestLoad_ConsoleFifDefault(t *testing.T) {
+	cfg, err := Load("/nonexistent/config.yaml")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.ConsoleFif != "/run/bedrock-console.fifo" {
+		t.Errorf("ConsoleFif default = %q, want the ADR-0001 path", cfg.ConsoleFif)
+	}
+}
+
+func TestLoad_ConsoleFifOverride(t *testing.T) {
+	p := writeFile(t, "console-fif: /run/my-server.fifo")
+	cfg, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.ConsoleFif != "/run/my-server.fifo" {
+		t.Errorf("ConsoleFif = %q", cfg.ConsoleFif)
+	}
+}
