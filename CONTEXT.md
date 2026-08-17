@@ -40,7 +40,24 @@ conversation all use them.
   `level.dat`/`levelname.txt`. The unit of backup/restore.
 - **live backup** — backup taken *while the server is running*, using the
   official save protocol: `save hold` → copy files listed by `save query` →
-  `save resume`. Distinguished from a stopped backup.
+  `save resume`. Distinguished from stop-and-copy.
+- **stop-and-copy** — the other backup mode: server stopped (verified),
+  the full world dir + config copied, server started again. Zero pause risk.
+- **hold window** — the server's paused-save duration between `save hold`
+  and `save resume`; the player-visible pause of a live backup.
+- **backup** — a completed, self-describing copy under the backup dir,
+  named by a timestamp id; its parseable manifest is what makes it a
+  backup — a dir without one is incomplete trash, never restorable.
+- **safety-net** — a backup of the *current* state taken immediately before
+  a restore (so the restore is always undoable); undoing a restore means
+  restoring the safety-net.
+- **interrupted save** — a live backup that died between `save hold` and
+  `save resume`; always detectable (stale backup lock) and finishable with
+  a one-key `save resume`. A server must never be left stuck in hold
+  undetectably.
+- **backup lock** — the shared claim that only one mutating backup
+  operation runs at a time (TUI and timer alike); its recorded state is
+  what makes an interrupted save detectable.
 - **cold config** — `server.properties` changes that only take effect on
   restart (vs. live-reloadable JSON like allowlist/permissions).
 

@@ -16,13 +16,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// RemoteConfig describes the optional remote copy target for backups (D7).
-type RemoteConfig struct {
-	Enabled bool   `yaml:"enabled"`
-	Target  string `yaml:"target"` // SSH target: host or user@host
-	Dir     string `yaml:"dir"`    // remote directory receiving copies
-}
-
 // Config is the resolved runtime configuration. Empty fields mean
 // "autodiscover" (D13).
 type Config struct {
@@ -41,8 +34,10 @@ type Config struct {
 	Retention int `yaml:"retention"`
 	// AuditFile is the JSONL audit trail path (D11).
 	AuditFile string `yaml:"audit-file"`
-	// Remote is the optional remote copy target; nil = disabled.
-	Remote *RemoteConfig `yaml:"remote"`
+	// IncludePacks also backs up behavior_packs/ and resource_packs/.
+	// Off by default: shared packs are operator-managed content, not world
+	// state (D7).
+	IncludePacks bool `yaml:"include-packs"`
 	// Port is the server's UDP port; 0 = autodiscover from server.properties.
 	Port int `yaml:"port"`
 }
@@ -88,9 +83,6 @@ func (c *Config) validate() error {
 	case "", "auto", "systemd", "tmux":
 	default:
 		return fmt.Errorf("supervisor must be auto, systemd, or tmux, got %q", c.Supervisor)
-	}
-	if c.Remote != nil && c.Remote.Enabled && c.Remote.Target == "" {
-		return errors.New("remote.target is required when remote is enabled")
 	}
 	return nil
 }

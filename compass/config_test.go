@@ -38,8 +38,8 @@ func TestLoad_MissingFile_ReturnsDefaults(t *testing.T) {
 	if cfg.ServerDir != "" {
 		t.Errorf("ServerDir default = %q, want empty (autodiscover)", cfg.ServerDir)
 	}
-	if cfg.Remote != nil {
-		t.Errorf("Remote default = %+v, want nil", cfg.Remote)
+	if cfg.IncludePacks {
+		t.Error("IncludePacks default must be false (off)")
 	}
 }
 
@@ -108,22 +108,28 @@ func TestLoad_MalformedYAML_Errors(t *testing.T) {
 	}
 }
 
-func TestLoad_RemoteConfig(t *testing.T) {
+func TestLoad_IncludePacks(t *testing.T) {
+	p := writeFile(t, "include-packs: true")
+	cfg, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.IncludePacks {
+		t.Error("IncludePacks = false, want true")
+	}
+}
+
+func TestLoad_RemoteKey_Rejected(t *testing.T) {
+	// Remote push was removed from v1 (D7 revised 2026-08-16): an operator
+	// with an old config must get a hard error, not a silent ignore.
 	p := writeFile(t, `
 remote:
   enabled: true
   target: backup-host
   dir: /remote/bedrock
 `)
-	cfg, err := Load(p)
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if cfg.Remote == nil {
-		t.Fatal("Remote is nil, want parsed block")
-	}
-	if !cfg.Remote.Enabled || cfg.Remote.Target != "backup-host" || cfg.Remote.Dir != "/remote/bedrock" {
-		t.Errorf("Remote = %+v", cfg.Remote)
+	if _, err := Load(p); err == nil {
+		t.Fatal("the remote key was removed from v1 config; it must be rejected")
 	}
 }
 

@@ -31,6 +31,32 @@ func skipIfRigDown(t *testing.T) {
 	if err != nil || strings.TrimSpace(string(out)) != "active" {
 		t.Skipf("scratch rig is not active (unit %s); start it to run these tests", rigUnit())
 	}
+	settleConsole(t)
+}
+
+// settleConsole blocks until the rig's console actually answers a command,
+// or the rig is skipped. A freshly started server reports "active" to
+// systemd before its console stdin is ready; the first command issued in
+// that window returns an empty response and would spuriously fail a
+// backup/restore test. Probing with a harmless read-only command until a
+// real response arrives makes the suite deterministic regardless of which
+// test runs first and of server startup timing.
+func settleConsole(t *testing.T) {
+	t.Helper()
+	c := rigConsole(t)
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		out, err := c.Send(ctx, "list")
+		cancel()
+		if err == nil && strings.Contains(out, "players online") {
+			return // console is live and answering
+		}
+		if time.Now().After(deadline) {
+			t.Skipf("rig is active but the console is not answering within 30s (last: %v / %q); start the server and retry", err, out)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 func rigConsole(t *testing.T) *Console {

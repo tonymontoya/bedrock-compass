@@ -93,8 +93,10 @@ service) — the operator's case.
   behavior/resource **packs excluded by default**, opt-in flag.
 - **Destination:** local `backups/` dir **outside** the server dir
   (configurable); **retention: keep last 7** (configurable), oldest pruned.
-- **Remote copy (in v1, optional):** push to a configured rsync-over-SSH
-  destination after each local backup.
+- **Remote copy: removed (revised 2026-08-16, operator).** No push channel
+  in the engine. Off-host copies are an operator concern: point
+  `backup-dir` at a NAS share (SMB/NFS mount) for automatic off-host
+  backups, or copy the flat `<id>` backup dirs manually (e.g. scp).
 - **Triggers:** on-demand (TUI) **and** a systemd timer for scheduled
   backups (in v1).
 - **Restore:** stop server → safety-net backup of current state → swap in
@@ -125,7 +127,7 @@ journal's AutoCompaction cadence, nothing fabricated.
 ### D10 — TUI layout & interaction (resolved 2026-08-15)
 Screens (tab row): **Dashboard** (telemetry + quick actions), **Players**
 (roster + recently connected; kick/allow/op), **Access** (allowlist gate,
-allowlist mgmt, IP blocks, op/deop), **Backups** (list local+remote,
+allowlist mgmt, IP blocks, op/deop), **Backups** (list,
 create live/stopped, restore, timer), **Logs** (D9), **Config**
 (server.properties editor with hot/cold markers per key), **Console**
 (raw passthrough, Esc back), **Server** (lifecycle, supervisor,
@@ -168,7 +170,7 @@ Project name: **bedrock-compass**. Binary: `bedrock-compass`. Repo:
   config, one-time `sudo` to add the user to `systemd-journal`.
   Uninstall = remove binary; `~/.local/state` survives.
 - **Config** `~/.config/bedrock-compass/config.yaml` (server dir, service /
-  tmux session, backup dir + retention, remote copy, ports) — but
+  tmux session, backup dir + retention, ports) — but
   **autodiscovery first**: `bedrock_server` process → working dir →
   matching systemd unit; config only overrides. One-server boxes need
   zero config.
