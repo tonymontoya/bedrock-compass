@@ -38,7 +38,11 @@ jobs:
           set -euo pipefail
           VERSION="$(git describe --tags --exact-match)"
           echo "Building $VERSION"
-          OS_ARCHES="linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64"
+          # Linux-only: the codebase reads /proc, uses syscall.Statfs_t /
+          # syscall.Kill, and a FIFO console — all Linux-specific. darwin and
+          # windows would need porting work that is out of scope for the
+          # versioning release; Bedrock dedicated servers run on Linux.
+          OS_ARCHES="linux/amd64 linux/arm64"
           for pair in $OS_ARCHES; do
             os="${pair%/*}"; arch="${pair#*/}"
             out="dist/bedrock-compass_${VERSION}_${os}_${arch}"
