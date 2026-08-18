@@ -22,7 +22,7 @@ func stackCfg(t *testing.T) *Config {
 
 func TestNewStack_SystemdWiresEverything(t *testing.T) {
 	st, err := NewStack(context.Background(), stackCfg(t), "1.26.430", StackOpts{
-		ConfigPath: "/home/tony/.config/bedrock-compass/config.yaml",
+		ConfigPath: "/etc/bedrock-compass/config.yaml",
 		BinaryPath: "/usr/local/bin/bedrock-compass",
 	})
 	if err != nil {
@@ -43,7 +43,7 @@ func TestNewStack_SystemdWiresEverything(t *testing.T) {
 	if st.Timer.Unit != DefaultTimerName {
 		t.Errorf("Timer.Unit = %q, want %q", st.Timer.Unit, DefaultTimerName)
 	}
-	if st.Timer.Config != "/home/tony/.config/bedrock-compass/config.yaml" {
+	if st.Timer.Config != "/etc/bedrock-compass/config.yaml" {
 		t.Errorf("Timer.Config = %q", st.Timer.Config)
 	}
 	if st.Timer.BinaryPath != "/usr/local/bin/bedrock-compass" {

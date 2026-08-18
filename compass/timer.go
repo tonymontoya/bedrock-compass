@@ -179,7 +179,10 @@ func (t *Timer) Remove(ctx context.Context) error {
 func (t *Timer) Status(ctx context.Context) (*TimerStatus, error) {
 	st := &TimerStatus{}
 	exec := t.exec()
-	loaded, _ := exec(ctx, "systemctl", "--user", "is-loaded", t.unit()+".timer")
+	loaded, err := exec(ctx, "systemctl", "--user", "is-loaded", t.unit()+".timer")
+	if err != nil {
+		return st, fmt.Errorf("systemctl --user is-loaded %s.timer: %w", t.unit(), err)
+	}
 	if strings.TrimSpace(string(loaded)) != "loaded" {
 		return st, nil
 	}
@@ -199,17 +202,28 @@ func (t *Timer) Status(ctx context.Context) (*TimerStatus, error) {
 }
 
 // renderServiceUnit is pure: it produces the service unit body.
+//
+// systemd word-splits ExecStart on whitespace, so the binary and config
+// paths must not contain unquoted spaces (the default install path has none;
+// a deployment with spaced paths would need systemd quoting — out of v1 scope).
+// --config is emitted only when a non-empty config path is given; otherwise the
+// service falls back to the standard config path rather than carrying a
+// dangling, valueless flag (which would make backup-now exit 2).
 func renderServiceUnit(binary, config, mode string) string {
 	// Runs as the current user's systemd manager, so it inherits HOME,
 	// PATH, and XDG_RUNTIME_DIR from the login session (the user manager
 	// forwards the ambient environment to oneshot services). We do NOT set
 	// Environment= here: a stale value would clobber the real HOME.
+	cfgFlag := ""
+	if config != "" {
+		cfgFlag = " --config " + config
+	}
 	return `[Unit]
 Description=bedrock-compass scheduled backup (mode=` + mode + `)
 
 [Service]
 Type=oneshot
-ExecStart=` + binary + ` backup-now --mode ` + mode + ` --config ` + config + `
+ExecStart=` + binary + ` backup-now --mode ` + mode + cfgFlag + `
 `
 }
 

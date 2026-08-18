@@ -55,7 +55,7 @@ func testTimer(t *testing.T, re *recExec) *Timer {
 	dir := t.TempDir()
 	return &Timer{
 		ConfigDir:  dir,
-		Config:     "/home/tony/.config/bedrock-compass/config.yaml",
+		Config:     "/etc/bedrock-compass/config.yaml",
 		BinaryPath: "/usr/local/bin/bedrock-compass",
 		Exec:       re.run,
 	}
@@ -106,6 +106,24 @@ func TestRenderServiceUnit_Live(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("service unit missing %q:\n%s", want, got)
 		}
+	}
+}
+
+// TestRenderServiceUnit_EmptyConfig regression: the real timer path (main.go
+// builds StackOpts{}) leaves Timer.Config empty. renderServiceUnit must then
+// omit --config entirely — a dangling, valueless `--config ` would make
+// backup-now's flag.Parse fail and the scheduled backup exit 2.
+func TestRenderServiceUnit_EmptyConfig(t *testing.T) {
+	got := renderServiceUnit("/usr/local/bin/bedrock-compass", "", "live")
+	if strings.Contains(got, "--config") {
+		t.Errorf("empty config must not emit --config, got:\n%s", got)
+	}
+	if want := "ExecStart=/usr/local/bin/bedrock-compass backup-now --mode live"; !strings.Contains(got, want) {
+		t.Errorf("service unit missing exact ExecStart %q:\n%s", want, got)
+	}
+	// No trailing dangling flag token after --mode live.
+	if strings.Contains(got, "--mode live ") || strings.Contains(got, "--mode live	") {
+		t.Errorf("ExecStart must not have a dangling token after the mode:\n%s", got)
 	}
 }
 
@@ -219,6 +237,20 @@ func TestTimerStatus_NotLoaded(t *testing.T) {
 	}
 	if st.Loaded || st.Enabled || st.Active {
 		t.Errorf("not-loaded status = %+v, want all false", st)
+	}
+}
+
+// TestTimerStatus_ExecFailureSurfaces: a systemctl error (missing binary,
+// permission denied) must surface as an error, not be silently reported as
+// "not loaded" — the two are operationally different.
+func TestTimerStatus_ExecFailureSurfaces(t *testing.T) {
+	re := newRecExec()
+	tm := testTimer(t, re)
+	re.errFor["is-loaded"] = errors.New("Access denied")
+	if _, err := tm.Status(context.Background()); err == nil {
+		t.Fatal("is-loaded failure must surface as an error, not 'not loaded'")
+	} else if !strings.Contains(err.Error(), "is-loaded") {
+		t.Errorf("error should name the failing command, got: %v", err)
 	}
 }
 
