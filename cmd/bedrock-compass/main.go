@@ -161,12 +161,14 @@ func runTUI(rest []string) int {
 	app.Screens[0] = tui.NewDashboard(app, recent)
 
 	// Backups (ticket #10): wire the engine + timer so the Backups screen can
-	// create/restore/prune backups and manage the scheduled timer.
+	// create/restore/prune backups and manage the scheduled timer. defaultScreens
+	// places Backups at index 3 (D10 order: Dashboard Players Access Backups ...),
+	// so it must be swapped there — index 1 is the Players placeholder.
 	stack, werr := compass.NewStack(ctx, cfg, version, compass.StackOpts{})
 	if werr != nil {
 		fmt.Fprintln(os.Stderr, "bedrock-compass: backup wiring degraded:", werr)
 	} else {
-		app.Screens[1] = tui.NewBackups(app, stack)
+		app.Screens[3] = tui.NewBackups(app, stack)
 	}
 
 	prog := tea.NewProgram(app, tea.WithAltScreen())
