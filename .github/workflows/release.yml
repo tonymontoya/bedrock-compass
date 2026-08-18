@@ -1,0 +1,89 @@
+name: release
+
+# Cut a GitHub Release when a version tag (v*) is pushed.
+# Builds static binaries for the supported platforms, checks them,
+# stamps the version via the tag, and publishes to a GitHub Release.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  GOVERSION: "1.22"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so git describe can find the tag
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GOVERSION }}
+          cache: false
+
+      - name: Makefile check (vet, fmt, test)
+        run: make vet fmt test
+
+      # The release version IS the tag (trigger is v*, so the tag already
+      # carries the leading v). Pin it explicitly here so the published version
+      # is unambiguous and matches the tag exactly — do not prepend another v.
+      - name: Build release binaries (multi-platform, static)
+        run: |
+          set -euo pipefail
+          VERSION="$(git describe --tags --exact-match)"
+          echo "Building $VERSION"
+          OS_ARCHES="linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64"
+          for pair in $OS_ARCHES; do
+            os="${pair%/*}"; arch="${pair#*/}"
+            out="dist/bedrock-compass_${VERSION}_${os}_${arch}"
+            [ "$os" = "windows" ] && out="$out.exe"
+            echo "::group::build ${os}/${arch}"
+            GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 \
+              go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
+              -o "$out" ./cmd/bedrock-compass
+            echo "::endgroup::"
+          done
+
+      - name: Verify binaries
+        run: |
+          set -euo pipefail
+          for f in dist/bedrock-compass_*; do
+            echo "== $f"; file "$f"
+          done
+          # prove the local linux build is static + versioned
+          VER=$(git describe --tags --exact-match)
+          ./dist/bedrock-compass_${VER}_linux_amd64 --version
+
+      - name: Checksums
+        run: |
+          ( cd dist && sha256sum bedrock-compass_* > SHA256SUMS.txt )
+          cat dist/SHA256SUMS.txt
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VER=$(git describe --tags --exact-match)
+          # Draft the notes: tag message if present, else a pointer.
+          NOTES="bedrock-compass ${VER} — static binaries (see SHA256SUMS.txt)."
+          if git log -1 --format=%B "$VER" | grep -q .; then
+            NOTES="$(git log -1 --format=%B "$VER")"
+          fi
+          # Attach everything under dist/ (binaries + SHA256SUMS.txt).
+          files=()
+          for f in dist/bedrock-compass_${VER}_*; do files+=("$f"); done
+          files+=("dist/SHA256SUMS.txt")
+          if gh release view "$VER" >/dev/null 2>&1; then
+            gh release upload "$VER" "${files[@]}" --clobber
+          else
+            gh release create "$VER" "${files[@]}" --title "bedrock-compass ${VER}" --notes "$NOTES"
+          fi
+          echo "Published ${VER}:"
+          gh release view "$VER"
