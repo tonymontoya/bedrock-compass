@@ -101,7 +101,8 @@ func TestRenderServiceUnit_Live(t *testing.T) {
 	got := renderServiceUnit("/usr/local/bin/bedrock-compass", "/cfg.yaml", "live")
 	for _, want := range []string{
 		"Type=oneshot",
-		"ExecStart=/usr/local/bin/bedrock-compass backup-now --mode live --config /cfg.yaml",
+		// --yes is mandatory since ADR-0010: without it backup-now exits 3.
+		"ExecStart=/usr/local/bin/bedrock-compass backup-now --mode live --config /cfg.yaml --yes",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("service unit missing %q:\n%s", want, got)
@@ -112,18 +113,20 @@ func TestRenderServiceUnit_Live(t *testing.T) {
 // TestRenderServiceUnit_EmptyConfig regression: the real timer path (main.go
 // builds StackOpts{}) leaves Timer.Config empty. renderServiceUnit must then
 // omit --config entirely — a dangling, valueless `--config ` would make
-// backup-now's flag.Parse fail and the scheduled backup exit 2.
+// backup-now's flag.Parse fail and the scheduled backup exit 2. The trailing
+// --yes is intentional (ADR-0010) and must be the last token: nothing may
+// follow it.
 func TestRenderServiceUnit_EmptyConfig(t *testing.T) {
 	got := renderServiceUnit("/usr/local/bin/bedrock-compass", "", "live")
 	if strings.Contains(got, "--config") {
 		t.Errorf("empty config must not emit --config, got:\n%s", got)
 	}
-	if want := "ExecStart=/usr/local/bin/bedrock-compass backup-now --mode live"; !strings.Contains(got, want) {
+	if want := "ExecStart=/usr/local/bin/bedrock-compass backup-now --mode live --yes"; !strings.Contains(got, want) {
 		t.Errorf("service unit missing exact ExecStart %q:\n%s", want, got)
 	}
-	// No trailing dangling flag token after --mode live.
-	if strings.Contains(got, "--mode live ") || strings.Contains(got, "--mode live	") {
-		t.Errorf("ExecStart must not have a dangling token after the mode:\n%s", got)
+	// No dangling token after the trailing --yes.
+	if strings.Contains(got, "--yes ") || strings.Contains(got, "--yes	") {
+		t.Errorf("ExecStart must not have a dangling token after --yes:\n%s", got)
 	}
 }
 

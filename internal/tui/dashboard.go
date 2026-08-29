@@ -16,10 +16,11 @@ import (
 
 // Host is the shell the dashboard talks back to: it requests confirmations
 // (Ask) and routes the operator to other tabs (GoTo). *App implements it; a
-// fake in tests keeps the dashboard decoupled from the concrete shell.
+// fake in tests keeps the dashboard decoupled from the concrete shell. GoTo
+// returns the newly active screen's pending work for the caller to schedule.
 type Host interface {
 	Ask(title, consequence string, tier Tier, target string, onConfirm func() tea.Cmd)
-	GoTo(label string)
+	GoTo(label string) tea.Cmd
 }
 
 // QuickAction is a dashboard shortcut (D10): it confirms at the given tier and
@@ -100,8 +101,7 @@ func (d *Dashboard) updateKey(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		a := d.actions[i]
 		if isRune(key, a.Key) {
 			d.host.Ask(a.Label, a.Consequence, a.Tier, a.Target, func() tea.Cmd {
-				d.host.GoTo(a.RouteTo)
-				return nil
+				return d.host.GoTo(a.RouteTo)
 			})
 			return d, nil
 		}

@@ -2,6 +2,7 @@ package compass
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -129,15 +130,22 @@ func containsLine(sent *[]string, line string) bool {
 	return false
 }
 
-func TestSupervisor_Tmux_Start_IsDeferred(t *testing.T) {
+func TestSupervisor_Tmux_Start_IsUnsupported(t *testing.T) {
+	// ADR-0001 rejected "tool-as-parent" (option B): the tool does not
+	// spawn the server process. A tmux-hosted server is launched by the
+	// operator in the pane; the tool manages it via the console channel.
+	// Start must therefore fail with a loud, actionable error rather than
+	// attempting to spawn anything.
 	c, _ := newScriptedConsole(t, nil)
 	s := NewTmuxSupervisor(c, func(ctx context.Context) (bool, error) { return true, nil })
 	err := s.Start(context.Background())
 	if err == nil {
-		t.Fatal("tmux start must be deferred to ticket #13 with a loud error")
+		t.Fatal("tmux start must be unsupported with a loud error")
 	}
-	if !strings.Contains(err.Error(), "#13") {
-		t.Errorf("error must name the deferral (ticket #13), got: %v", err)
+	for _, want := range []string{"not supported", "tmux pane manually"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error must explain the design (contains %q), got: %v", want, err)
+		}
 	}
 }
 
@@ -184,5 +192,50 @@ func TestSupervisor_Tmux_RunningFallsBackToProcessCheck(t *testing.T) {
 	got, err := s.Running(context.Background())
 	if err != nil || got != want {
 		t.Fatalf("Running = %v, %v; want %v, nil", got, err, want)
+	}
+}
+
+// TestSupervisor_Systemd_UptimeIsMicroseconds pins the unit of
+// ActiveEnterTimestampMonotonic: systemd reports it in MICROSECONDS. A value
+// 1000s into the host's monotonic clock must yield ~1000s of uptime — not
+// ~1s (the ns misread that inflated displayed uptime by 1000x, ticket #13).
+func TestSupervisor_Systemd_UptimeIsMicroseconds(t *testing.T) {
+	nowNS, ok := monotonicNowNS()
+	if !ok {
+		t.Skip("monotonic clock unavailable")
+	}
+	const elapsedUS = int64(1000 * 1e6) // the unit entered active 1000s ago
+	aem := nowNS/1000 - elapsedUS       // µs, matching systemd's units
+	f := &fakeExec{output: map[string][]byte{}}
+	f.output["systemctl"] = []byte("ActiveState=active\nMainPID=4242\n" +
+		fmt.Sprintf("ActiveEnterTimestampMonotonic=%d\n", aem))
+	s := NewSystemdSupervisor("u.service", f.run)
+
+	st, err := s.Status(context.Background())
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if !st.Active || st.PID != 4242 {
+		t.Fatalf("status = %+v, want active pid 4242", st)
+	}
+	want := 1000 * time.Second
+	if d := st.Uptime - want; d < -time.Minute || d > time.Minute {
+		t.Errorf("Uptime = %v, want ~%v (±1m); a value this far off means the µs/ns unit is misread", st.Uptime, want)
+	}
+}
+
+// TestSupervisor_Systemd_UptimeZeroWhenInactive pins that an inactive unit
+// (empty monotonic timestamp) reports no uptime rather than garbage.
+func TestSupervisor_Systemd_UptimeZeroWhenInactive(t *testing.T) {
+	f := &fakeExec{output: map[string][]byte{}}
+	f.output["systemctl"] = []byte("ActiveState=inactive\nMainPID=0\nActiveEnterTimestampMonotonic=\n")
+	s := NewSystemdSupervisor("u.service", f.run)
+
+	st, err := s.Status(context.Background())
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if st.Active || st.Uptime != 0 {
+		t.Errorf("status = %+v, want inactive with zero uptime", st)
 	}
 }

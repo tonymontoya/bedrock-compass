@@ -45,8 +45,15 @@ func (s *ToastStack) Prune(now time.Time) {
 // Active reports whether any toast is currently visible.
 func (s *ToastStack) Active() bool { return len(s.Items) > 0 }
 
-// Render lays out the visible toasts, newest on top.
-func (s *ToastStack) Render() string {
+// Render lays out the visible toasts, newest on top. width (default 80) is
+// the available terminal columns: a toast longer than it wraps at word
+// boundaries instead of running off the right edge (ticket #13 review —
+// long error toasts were hard-clipped by the terminal).
+func (s *ToastStack) Render(width ...int) string {
+	w := 80
+	if len(width) > 0 && width[0] > 0 {
+		w = width[0]
+	}
 	if len(s.Items) == 0 {
 		return ""
 	}
@@ -60,7 +67,28 @@ func (s *ToastStack) Render() string {
 		case ToastError:
 			st = toastErr
 		}
-		lines = append(lines, st.Render(strings.TrimSpace(t.Msg)))
+		for _, ln := range wordWrap(strings.TrimSpace(t.Msg), w) {
+			lines = append(lines, st.Render(ln))
+		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+// wordWrap breaks s into lines of at most width columns, preferring word
+// boundaries. A single token longer than the width is hard-split so no line
+// can overflow (the terminal would clip it anyway).
+func wordWrap(s string, width int) []string {
+	if width <= 0 || len(s) <= width {
+		return []string{s}
+	}
+	var lines []string
+	for len(s) > width {
+		cut := strings.LastIndexByte(s[:width], ' ')
+		if cut <= 0 {
+			cut = width // no word boundary in range: hard split
+		}
+		lines = append(lines, s[:cut])
+		s = strings.TrimLeft(s[cut:], " ")
+	}
+	return append(lines, s)
 }

@@ -209,6 +209,9 @@ func (t *Timer) Status(ctx context.Context) (*TimerStatus, error) {
 // --config is emitted only when a non-empty config path is given; otherwise the
 // service falls back to the standard config path rather than carrying a
 // dangling, valueless flag (which would make backup-now exit 2).
+// --yes is always emitted: since ADR-0010 backup-now refuses without it (exit
+// 3), and creating the schedule is the operator's prior explicit decision —
+// the unattended run is pre-confirmed by construction.
 func renderServiceUnit(binary, config, mode string) string {
 	// Runs as the current user's systemd manager, so it inherits HOME,
 	// PATH, and XDG_RUNTIME_DIR from the login session (the user manager
@@ -223,7 +226,7 @@ Description=bedrock-compass scheduled backup (mode=` + mode + `)
 
 [Service]
 Type=oneshot
-ExecStart=` + binary + ` backup-now --mode ` + mode + cfgFlag + `
+ExecStart=` + binary + ` backup-now --mode ` + mode + cfgFlag + ` --yes
 `
 }
 

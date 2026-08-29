@@ -29,8 +29,9 @@ func (f *fakeHost) Ask(title, consequence string, tier Tier, target string, onCo
 	f.asks = append(f.asks, askedAction{title, consequence, tier, target, onConfirm})
 }
 
-func (f *fakeHost) GoTo(label string) {
+func (f *fakeHost) GoTo(label string) tea.Cmd {
 	f.gosTo = append(f.gosTo, label)
+	return nil
 }
 
 func statProvider(s compass.Status) func() compass.Status {

@@ -31,4 +31,14 @@ var (
 	tileSection = lipgloss.NewStyle().Bold(true).Foreground(colAccent).MarginTop(1)
 	eventOK     = lipgloss.NewStyle().Foreground(colOK)
 	eventErr    = lipgloss.NewStyle().Foreground(colErr)
+
+	// Logs (ticket #8) level styles: the server's own "[ts LEVEL]" tag.
+	lvlInfo  = lipgloss.NewStyle().Foreground(colText)
+	lvlWarn  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#f5a623"))
+	lvlError = lipgloss.NewStyle().Bold(true).Foreground(colErr)
+
+	// Console (ticket #12): the raw passthrough surface. The prompt and echoed
+	// commands are accented so they read as "what I typed" against plain output.
+	consolePrompt = lipgloss.NewStyle().Bold(true).Foreground(colAccent)
+	consoleCmd    = lipgloss.NewStyle().Bold(true).Foreground(colText)
 )

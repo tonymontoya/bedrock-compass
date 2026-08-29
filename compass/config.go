@@ -104,3 +104,28 @@ func StandardPath() string {
 
 // LoadStandard loads from StandardPath().
 func LoadStandard() (*Config, error) { return Load(StandardPath()) }
+
+// Save persists the config to path, creating the parent directory when
+// needed. It writes to a temp file in the same directory and renames it
+// into place, so a crash mid-write never leaves a torn config. Used by
+// adopt (#13) to record the deployment the tool has claimed.
+func (c *Config) Save(path string) error {
+	data, err := yaml.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("marshal config: %w", err)
+	}
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("create config dir: %w", err)
+		}
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("rename config into place: %w", err)
+	}
+	return nil
+}

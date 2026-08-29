@@ -46,11 +46,16 @@ RIG_HOST ?=
 
 .PHONY: integ build-integ
 
-build-integ: ## Build the static integration test binary
+build-integ: ## Build the static integration test binaries
 	mkdir -p .tmp
 	CGO_ENABLED=0 go test -c -tags integration -o .tmp/compass-integration.test ./compass/
+	CGO_ENABLED=0 go test -c -tags integration -o .tmp/cmd-integration.test ./cmd/bedrock-compass/
 
 integ: build-integ ## Ship and run the integration tests on the rig host
 	@test -n "$(RIG_HOST)" || { echo "set RIG_HOST=<ssh target>, e.g. RIG_HOST=rig make integ"; exit 1; }
 	scp .tmp/compass-integration.test $(RIG_HOST):/tmp/compass-integration.test
+	scp .tmp/cmd-integration.test $(RIG_HOST):/tmp/cmd-integration.test
+	$(MAKE) build
+	scp dist/bedrock-compass $(RIG_HOST):/tmp/bedrock-compass
 	ssh $(RIG_HOST) '/tmp/compass-integration.test -test.v -test.run TestIntegration'
+	ssh $(RIG_HOST) '/tmp/cmd-integration.test -test.v -test.run TestIntegration'
