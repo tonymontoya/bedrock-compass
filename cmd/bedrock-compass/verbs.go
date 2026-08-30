@@ -581,7 +581,7 @@ Examples:
   bedrock-compass status
   bedrock-compass roster --json
   bedrock-compass logs --level WARN --since "2026-08-25 09:00"
-  bedrock-compass allowlist add Tony75264 --yes
+  bedrock-compass allowlist add player_one --yes
   bedrock-compass backup-now --mode live --yes
   bedrock-compass restore <backup-id> --yes
 `

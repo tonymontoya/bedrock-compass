@@ -148,12 +148,12 @@ func TestAllowlistGate_RefusesWithoutYes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	code := run([]string{"bedrock-compass", "allowlist", "add", "Tony75264", "--config", cfgPath})
+	code := run([]string{"bedrock-compass", "allowlist", "add", "player_one", "--config", cfgPath})
 	if code != exitConfirmation {
 		t.Fatalf("exit = %d, want %d", code, exitConfirmation)
 	}
 	data, _ := os.ReadFile(filepath.Join(serverDir, "allowlist.json"))
-	if strings.Contains(string(data), "Tony75264") {
+	if strings.Contains(string(data), "player_one") {
 		t.Errorf("refused mutation still wrote the allowlist: %s", data)
 	}
 	evs := trailEvents(t, st)
@@ -177,7 +177,7 @@ func TestAllowlistAdd_WithYes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	code := run([]string{"bedrock-compass", "allowlist", "add", "Tony75264", "--config", cfgPath, "--yes"})
+	code := run([]string{"bedrock-compass", "allowlist", "add", "player_one", "--config", cfgPath, "--yes"})
 	if code != 0 {
 		t.Fatalf("exit = %d, want 0", code)
 	}
@@ -185,7 +185,7 @@ func TestAllowlistAdd_WithYes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("allowlist not written: %v", err)
 	}
-	if !strings.Contains(string(data), "Tony75264") {
+	if !strings.Contains(string(data), "player_one") {
 		t.Errorf("identity missing from allowlist: %s", data)
 	}
 	evs := trailEvents(t, st)
@@ -211,20 +211,20 @@ func TestAllowlistRemove_WithYes(t *testing.T) {
 	if err := os.MkdirAll(serverDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	seed := `[{"name":"Tony75264","ignoresPlayerLimit":false},{"name":"breal875623","ignoresPlayerLimit":false}]`
+	seed := `[{"name":"player_one","ignoresPlayerLimit":false},{"name":"player_two","ignoresPlayerLimit":false}]`
 	if err := os.WriteFile(filepath.Join(serverDir, "allowlist.json"), []byte(seed), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	code := run([]string{"bedrock-compass", "allowlist", "remove", "Tony75264", "--config", cfgPath, "--yes"})
+	code := run([]string{"bedrock-compass", "allowlist", "remove", "player_one", "--config", cfgPath, "--yes"})
 	if code != 0 {
 		t.Fatalf("exit = %d, want 0", code)
 	}
 	data, _ := os.ReadFile(filepath.Join(serverDir, "allowlist.json"))
-	if strings.Contains(string(data), "Tony75264") {
+	if strings.Contains(string(data), "player_one") {
 		t.Errorf("identity still on allowlist: %s", data)
 	}
-	if !strings.Contains(string(data), "breal875623") {
+	if !strings.Contains(string(data), "player_two") {
 		t.Errorf("unrelated entry lost: %s", data)
 	}
 }
@@ -297,7 +297,7 @@ func TestRoster_FakeConsole(t *testing.T) {
 	st := buildStack(t, cfgPath)
 	var sent []string
 	st.Players.Console = cannedConsole(&sent, map[string]string{
-		"list": "There are 2/15 players online:\nTony75264 [xuid: 2533274865350919]\nbreal875623",
+		"list": "There are 2/15 players online:\nplayer_one [xuid: 1111111111111111]\nplayer_two",
 	})
 	withFakeStack(t, st)
 
@@ -622,7 +622,7 @@ func TestAuditLine_SortedParams(t *testing.T) {
 	ev := compass.Event{
 		Time:     time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
 		Verb:     "cli",
-		Params:   map[string]string{"cmd": "allowlist add", "action": "add", "identity": "Tony75264", "bypass": "--yes"},
+		Params:   map[string]string{"cmd": "allowlist add", "action": "add", "identity": "player_one", "bypass": "--yes"},
 		Result:   "ok",
 		Duration: 123 * time.Millisecond,
 	}
@@ -639,7 +639,7 @@ func TestAuditLine_SortedParams(t *testing.T) {
 	svc := compass.Event{
 		Time:   time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC),
 		Verb:   "access",
-		Params: map[string]string{"action": "allow-add", "identity": "Tony75264"},
+		Params: map[string]string{"action": "allow-add", "identity": "player_one"},
 		Result: "ok",
 	}
 	if got := auditLine(svc); !strings.Contains(got, "access/allow-add ok") {

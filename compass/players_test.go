@@ -89,24 +89,24 @@ func playerEvents(t *testing.T, tr *Trail) []Event {
 // --- ParsePlayerLine (the shared D9 parser) ---
 
 func TestParsePlayerLine_Connected(t *testing.T) {
-	name, xuid, kind, ok := ParsePlayerLine("Player connected: Tony75264, xuid: 2533274865350919")
-	if !ok || name != "Tony75264" || xuid != "2533274865350919" || kind != PlayerEventConnected {
+	name, xuid, kind, ok := ParsePlayerLine("Player connected: player_one, xuid: 1111111111111111")
+	if !ok || name != "player_one" || xuid != "1111111111111111" || kind != PlayerEventConnected {
 		t.Errorf("got (%q, %q, %v, %v)", name, xuid, kind, ok)
 	}
 }
 
 func TestParsePlayerLine_DisconnectedWithPfid(t *testing.T) {
 	name, xuid, kind, ok := ParsePlayerLine(
-		"Player disconnected: Tony75264, xuid: 2533274865350919, pfid: ED6EDB84C3BDED35")
-	if !ok || name != "Tony75264" || xuid != "2533274865350919" || kind != PlayerEventDisconnected {
+		"Player disconnected: player_one, xuid: 1111111111111111, pfid: ABCDEF0123456789")
+	if !ok || name != "player_one" || xuid != "1111111111111111" || kind != PlayerEventDisconnected {
 		t.Errorf("got (%q, %q, %v, %v)", name, xuid, kind, ok)
 	}
 }
 
 func TestParsePlayerLine_FullJournalctlLine(t *testing.T) {
-	line := "Aug 19 01:54:21 minecraft sh[107202]: [2026-08-19 01:54:21:901 INFO] Player connected: breal875623, xuid: 2535465377145824"
+	line := "Aug 19 01:54:21 minecraft sh[107202]: [2026-08-19 01:54:21:901 INFO] Player connected: player_two, xuid: 2222222222222222"
 	name, xuid, kind, ok := ParsePlayerLine(line)
-	if !ok || name != "breal875623" || xuid != "2535465377145824" || kind != PlayerEventConnected {
+	if !ok || name != "player_two" || xuid != "2222222222222222" || kind != PlayerEventConnected {
 		t.Errorf("got (%q, %q, %v, %v)", name, xuid, kind, ok)
 	}
 }
@@ -144,7 +144,7 @@ func TestParseRoster_ZeroPlayers(t *testing.T) {
 }
 
 func TestParseRoster_BareNames(t *testing.T) {
-	out := "There are 2/15 players online:\nTony75264\nbreal875623"
+	out := "There are 2/15 players online:\nplayer_one\nplayer_two"
 	r, err := ParseRoster(out)
 	if err != nil {
 		t.Fatalf("err = %v", err)
@@ -152,41 +152,41 @@ func TestParseRoster_BareNames(t *testing.T) {
 	if r.Count != 2 || len(r.Online) != 2 {
 		t.Fatalf("got %+v", r)
 	}
-	if r.Online[0].Name != "Tony75264" || r.Online[1].Name != "breal875623" {
+	if r.Online[0].Name != "player_one" || r.Online[1].Name != "player_two" {
 		t.Errorf("names = %v", r.Online)
 	}
 }
 
 func TestParseRoster_NameWithXUIDBracket(t *testing.T) {
-	out := "There are 1/15 players online:\nTony75264 [xuid: 2533274865350919]"
+	out := "There are 1/15 players online:\nplayer_one [xuid: 1111111111111111]"
 	r, err := ParseRoster(out)
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
-	if len(r.Online) != 1 || r.Online[0].Name != "Tony75264" || r.Online[0].XUID != "2533274865350919" {
+	if len(r.Online) != 1 || r.Online[0].Name != "player_one" || r.Online[0].XUID != "1111111111111111" {
 		t.Errorf("got %+v", r.Online)
 	}
 }
 
 func TestParseRoster_NameWithXUIDParens(t *testing.T) {
-	out := "There are 1/15 players online:\nTony75264 (2533274865350919)"
+	out := "There are 1/15 players online:\nplayer_one (1111111111111111)"
 	r, err := ParseRoster(out)
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
-	if len(r.Online) != 1 || r.Online[0].Name != "Tony75264" || r.Online[0].XUID != "2533274865350919" {
+	if len(r.Online) != 1 || r.Online[0].Name != "player_one" || r.Online[0].XUID != "1111111111111111" {
 		t.Errorf("got %+v", r.Online)
 	}
 }
 
 func TestParseRoster_TrimsRowsPastCount(t *testing.T) {
 	// Interleaved journal noise after the header: only `count` rows are real.
-	out := "There are 1/15 players online:\nTony75264\nPlayer connected: breal875623, xuid: 2535465377145824"
+	out := "There are 1/15 players online:\nplayer_one\nPlayer connected: player_two, xuid: 2222222222222222"
 	r, err := ParseRoster(out)
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
-	if len(r.Online) != 1 || r.Online[0].Name != "Tony75264" {
+	if len(r.Online) != 1 || r.Online[0].Name != "player_one" {
 		t.Errorf("got %+v (event line must not be a roster row)", r.Online)
 	}
 }
@@ -201,22 +201,22 @@ func TestParseRoster_NoHeader(t *testing.T) {
 
 func TestMinePlayerHistory_DedupesByXUID_NewestFirst(t *testing.T) {
 	lines := []string{
-		"[2026-08-19 01:30:22:503 INFO] Player connected: breal875623, xuid: 2535465377145824",
-		"[2026-08-19 01:54:21:901 INFO] Player connected: Tony75264, xuid: 2533274865350919",
-		"[2026-08-19 02:56:29:353 INFO] Player disconnected: Tony75264, xuid: 2533274865350919, pfid: ED6EDB84C3BDED35",
+		"[2026-08-19 01:30:22:503 INFO] Player connected: player_two, xuid: 2222222222222222",
+		"[2026-08-19 01:54:21:901 INFO] Player connected: player_one, xuid: 1111111111111111",
+		"[2026-08-19 02:56:29:353 INFO] Player disconnected: player_one, xuid: 1111111111111111, pfid: ABCDEF0123456789",
 	}
 	got := MinePlayerHistory(lines)
 	if len(got) != 2 {
 		t.Fatalf("got %d players: %+v", len(got), got)
 	}
 	// Tony's last activity (disconnect at 02:56) is newer than breal's.
-	if got[0].Name != "Tony75264" || got[0].XUID != "2533274865350919" {
-		t.Errorf("newest = %+v, want Tony75264", got[0])
+	if got[0].Name != "player_one" || got[0].XUID != "1111111111111111" {
+		t.Errorf("newest = %+v, want player_one", got[0])
 	}
 	if got[0].State != "disconnected" {
 		t.Errorf("Tony state = %q, want disconnected (last event)", got[0].State)
 	}
-	if got[1].Name != "breal875623" || got[1].State != "connected" {
+	if got[1].Name != "player_two" || got[1].State != "connected" {
 		t.Errorf("second = %+v", got[1])
 	}
 	wantAt, _ := time.Parse("2006-01-02 15:04:05", "2026-08-19 02:56:29")
@@ -227,12 +227,12 @@ func TestMinePlayerHistory_DedupesByXUID_NewestFirst(t *testing.T) {
 
 func TestMinePlayerHistory_CorrelatesByNameWhenNoXUID(t *testing.T) {
 	lines := []string{
-		"[2026-08-19 01:30:22:503 INFO] Player connected: breal875623, xuid: 2535465377145824",
-		"[2026-08-19 02:00:00:000 INFO] Player disconnected: breal875623", // no xuid on this line
+		"[2026-08-19 01:30:22:503 INFO] Player connected: player_two, xuid: 2222222222222222",
+		"[2026-08-19 02:00:00:000 INFO] Player disconnected: player_two", // no xuid on this line
 	}
 	got := MinePlayerHistory(lines)
-	if len(got) != 1 || got[0].Name != "breal875623" || got[0].XUID != "2535465377145824" {
-		t.Fatalf("got %+v, want one breal875623 with the XUID from the earlier line", got)
+	if len(got) != 1 || got[0].Name != "player_two" || got[0].XUID != "2222222222222222" {
+		t.Fatalf("got %+v, want one player_two with the XUID from the earlier line", got)
 	}
 	if got[0].State != "disconnected" {
 		t.Errorf("state = %q, want disconnected", got[0].State)
@@ -261,8 +261,8 @@ func TestPlayers_Recent_MinesJournalTail(t *testing.T) {
 	f := newFakeConsole()
 	s, _ := playersRig(t, f)
 	lines := []string{
-		"[2026-08-19 01:30:22:503 INFO] Player connected: breal875623, xuid: 2535465377145824",
-		"[2026-08-19 01:54:21:901 INFO] Player connected: Tony75264, xuid: 2533274865350919",
+		"[2026-08-19 01:30:22:503 INFO] Player connected: player_two, xuid: 2222222222222222",
+		"[2026-08-19 01:54:21:901 INFO] Player connected: player_one, xuid: 1111111111111111",
 	}
 	s.Journal = &Journal{Unit: "u"}
 	// The fake returns full journalctl plain-output lines (syslog prefix +
@@ -278,7 +278,7 @@ func TestPlayers_Recent_MinesJournalTail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err = %v", err)
 	}
-	if len(got) != 2 || got[0].Name != "Tony75264" {
+	if len(got) != 2 || got[0].Name != "player_one" {
 		t.Errorf("got %+v", got)
 	}
 }
@@ -324,15 +324,15 @@ func TestClassifyReply_DuplicateAllowlistAdd(t *testing.T) {
 func TestPlayers_Kick_SendsGamertagFirst(t *testing.T) {
 	f := newFakeConsole() // silence on success
 	s, tr := playersRig(t, f)
-	detail, err := s.Kick(context.Background(), Player{Name: "Tony75264", XUID: "2533274865350919"})
+	detail, err := s.Kick(context.Background(), Player{Name: "player_one", XUID: "1111111111111111"})
 	if err != nil {
 		t.Fatalf("err = %v (silence on success must not be an error)", err)
 	}
 	if detail != "" {
 		t.Errorf("detail = %q, want empty", detail)
 	}
-	if len(f.calls) != 1 || f.calls[0] != "kick Tony75264" {
-		t.Fatalf("calls = %v, want [kick Tony75264]", f.calls)
+	if len(f.calls) != 1 || f.calls[0] != "kick player_one" {
+		t.Fatalf("calls = %v, want [kick player_one]", f.calls)
 	}
 	evs := playerEvents(t, tr)
 	if len(evs) != 1 || evs[0].Params["action"] != "kick" || evs[0].Result != "ok" {
@@ -359,13 +359,13 @@ func TestPlayers_Kick_UnknownPlayerSurfacesServerLine(t *testing.T) {
 func TestPlayers_OpDeop_CommandShape(t *testing.T) {
 	f := newFakeConsole()
 	s, _ := playersRig(t, f)
-	if _, err := s.Op(context.Background(), Player{Name: "Tony75264"}); err != nil {
+	if _, err := s.Op(context.Background(), Player{Name: "player_one"}); err != nil {
 		t.Fatalf("Op: %v", err)
 	}
-	if _, err := s.Deop(context.Background(), Player{Name: "Tony75264"}); err != nil {
+	if _, err := s.Deop(context.Background(), Player{Name: "player_one"}); err != nil {
 		t.Fatalf("Deop: %v", err)
 	}
-	want := []string{"op Tony75264", "deop Tony75264"}
+	want := []string{"op player_one", "deop player_one"}
 	if len(f.calls) != 2 || f.calls[0] != want[0] || f.calls[1] != want[1] {
 		t.Errorf("calls = %v, want %v", f.calls, want)
 	}
@@ -391,14 +391,14 @@ func TestPlayers_Allow_SendsGamertagAndAudits(t *testing.T) {
 }
 
 func TestPlayers_Allow_FallsBackToXUID(t *testing.T) {
-	f := newFakeConsole("[2026-08-20 14:30:27:638 INFO] Added 2533274865350919 to the allowlist")
+	f := newFakeConsole("[2026-08-20 14:30:27:638 INFO] Added 1111111111111111 to the allowlist")
 	s, _ := playersRig(t, f)
 	// No gamertag known (should not happen from this tool's own data, but
 	// the identity handoff must still work XUID-only).
-	if _, err := s.Allow(context.Background(), Player{XUID: "2533274865350919"}); err != nil {
+	if _, err := s.Allow(context.Background(), Player{XUID: "1111111111111111"}); err != nil {
 		t.Fatalf("err = %v", err)
 	}
-	if f.calls[0] != "allowlist add 2533274865350919" {
+	if f.calls[0] != "allowlist add 1111111111111111" {
 		t.Errorf("call = %q, want allowlist add <xuid>", f.calls[0])
 	}
 }
@@ -420,7 +420,7 @@ func TestPlayers_NoConsoleFailsCleanly(t *testing.T) {
 }
 
 func TestPlayers_Roster_ParsesListReply(t *testing.T) {
-	f := newFakeConsole("There are 2/15 players online:\nTony75264\nbreal875623")
+	f := newFakeConsole("There are 2/15 players online:\nplayer_one\nplayer_two")
 	s, _ := playersRig(t, f)
 	r, err := s.Roster(context.Background())
 	if err != nil {

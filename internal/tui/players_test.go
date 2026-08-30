@@ -78,11 +78,11 @@ func TestPlayers_View_Online(t *testing.T) {
 	s := NewPlayers(host, st)
 	feedRoster(t, s,
 		[]compass.Player{
-			{Name: "brea", XUID: "2533274865350919"},
-			{Name: "tony", XUID: "2535465377145824"},
+			{Name: "brea", XUID: "1111111111111111"},
+			{Name: "tony", XUID: "2222222222222222"},
 		}, 2, 15,
 		[]compass.RecentPlayer{
-			{Name: "brea", XUID: "2533274865350919", State: "connected", LastSeen: time.Date(2026, 8, 19, 1, 30, 22, 0, time.UTC)},
+			{Name: "brea", XUID: "1111111111111111", State: "connected", LastSeen: time.Date(2026, 8, 19, 1, 30, 22, 0, time.UTC)},
 			{Name: "oldfriend", XUID: "", State: "disconnected", LastSeen: time.Date(2026, 8, 18, 22, 4, 5, 0, time.UTC)},
 		},
 	)
@@ -92,7 +92,7 @@ func TestPlayers_View_Online(t *testing.T) {
 		"Players",
 		"Online (2 / 15 players online)",
 		"brea",
-		"xuid 2533274865350919",
+		"xuid 1111111111111111",
 		"tony",
 		"Recently connected (2)",
 		"oldfriend",
@@ -150,7 +150,7 @@ func TestPlayers_KickConfirmsAtTierEnter(t *testing.T) {
 	fc := &playersFakeConsole{replies: []string{"Kicked brea"}}
 	st := newPlayersRig(t, fc, nil)
 	s := NewPlayers(host, st)
-	feedRoster(t, s, []compass.Player{{Name: "brea", XUID: "2533274865350919"}}, 1, 15, nil)
+	feedRoster(t, s, []compass.Player{{Name: "brea", XUID: "1111111111111111"}}, 1, 15, nil)
 
 	s.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
 	if len(host.asks) != 1 || host.asks[0] != "Kick player" {
@@ -218,7 +218,7 @@ func TestPlayers_ActionWithoutSelectionToasts(t *testing.T) {
 
 func TestPlayers_StatusMsgTriggersRepoll(t *testing.T) {
 	host := &fakeServerHost{}
-	fc := &playersFakeConsole{replies: []string{"There are 1/15 players online:\nbrea [xuid: 2533274865350919]"}}
+	fc := &playersFakeConsole{replies: []string{"There are 1/15 players online:\nbrea [xuid: 1111111111111111]"}}
 	st := newPlayersRig(t, fc, nil)
 	s := NewPlayers(host, st)
 
@@ -293,7 +293,7 @@ func TestPlayers_TabLabel(t *testing.T) {
 // operator pressed u. Switching tabs must schedule that first poll.
 func TestApp_SwitchTabSchedulesInitialPoll(t *testing.T) {
 	host := &fakeServerHost{}
-	fc := &playersFakeConsole{replies: []string{"There are 1/15 players online:\nbrea [xuid: 2533274865350919]"}}
+	fc := &playersFakeConsole{replies: []string{"There are 1/15 players online:\nbrea [xuid: 1111111111111111]"}}
 	st := newPlayersRig(t, fc, nil)
 
 	app := NewApp()

@@ -159,7 +159,7 @@ func ParseRoster(out string) (Roster, error) {
 func parseRosterRow(line string) Player {
 	if i := strings.Index(line, "[xuid:"); i >= 0 {
 		name := strings.TrimSpace(line[:i])
-		digits := digitsIn(line[i+len("[xuid:"):]) // " 2533274865350919]" -> the run
+		digits := digitsIn(line[i+len("[xuid:"):]) // " 1111111111111111]" -> the run
 		if name != "" && digits != "" {
 			return Player{Name: name, XUID: digits}
 		}

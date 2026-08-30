@@ -8,7 +8,7 @@ import (
 )
 
 func TestParseLogLine_Tagged(t *testing.T) {
-	e := ParseLogLine("[2026-08-19 01:30:22:503 INFO] Player connected: breal875623, xuid: 2535465377145824")
+	e := ParseLogLine("[2026-08-19 01:30:22:503 INFO] Player connected: player_two, xuid: 2222222222222222")
 	if e.Level != "INFO" {
 		t.Fatalf("level=%q", e.Level)
 	}
@@ -16,7 +16,7 @@ func TestParseLogLine_Tagged(t *testing.T) {
 	if !e.Time.Equal(want) {
 		t.Fatalf("time=%v, want %v", e.Time, want)
 	}
-	if e.Text != "[2026-08-19 01:30:22:503 INFO] Player connected: breal875623, xuid: 2535465377145824" {
+	if e.Text != "[2026-08-19 01:30:22:503 INFO] Player connected: player_two, xuid: 2222222222222222" {
 		t.Fatalf("text=%q", e.Text)
 	}
 }
@@ -43,7 +43,7 @@ func TestParseLogLine_Untagged(t *testing.T) {
 }
 
 func TestParseLogLine_FullJournalctlLine(t *testing.T) {
-	e := ParseLogLine("Aug 19 01:54:21 minecraft sh[107202]: [2026-08-19 01:54:21:901 INFO] Player connected: Tony75264, xuid: 2533274865350919")
+	e := ParseLogLine("Aug 19 01:54:21 minecraft sh[107202]: [2026-08-19 01:54:21:901 INFO] Player connected: player_one, xuid: 1111111111111111")
 	if e.Level != "INFO" {
 		t.Fatalf("level=%q", e.Level)
 	}
@@ -55,7 +55,7 @@ func TestParseLogLine_FullJournalctlLine(t *testing.T) {
 
 func TestFilterEntries_NoFilters(t *testing.T) {
 	in := ParseEntries([]string{
-		"[2026-08-19 01:30:22:503 INFO] Player connected: breal875623, xuid: 2535465377145824",
+		"[2026-08-19 01:30:22:503 INFO] Player connected: player_two, xuid: 2222222222222222",
 		"/? <page: int>",
 	})
 	out := FilterEntries(in, LogFilters{})
@@ -82,7 +82,7 @@ func TestFilterEntries_Level(t *testing.T) {
 
 func TestFilterEntries_Text(t *testing.T) {
 	in := ParseEntries([]string{
-		"[2026-08-19 01:30:22:503 INFO] Player connected: breal875623, xuid: 2535465377145824",
+		"[2026-08-19 01:30:22:503 INFO] Player connected: player_two, xuid: 2222222222222222",
 		"[2026-08-19 01:31:00:000 WARN] Disk almost full",
 	})
 	out := FilterEntries(in, LogFilters{Text: "disk"})
@@ -93,12 +93,12 @@ func TestFilterEntries_Text(t *testing.T) {
 
 func TestFilterEntries_Player(t *testing.T) {
 	in := ParseEntries([]string{
-		"[2026-08-19 01:30:22:503 INFO] Player connected: breal875623, xuid: 2535465377145824",
-		"[2026-08-19 01:31:00:000 INFO] Player disconnected: Tony75264, xuid: 2533274865350919",
-		"[2026-08-19 01:32:00:000 INFO] breal875623 issued server command: /time set day",
-		"[2026-08-19 01:33:00:000 INFO] Player connected: Tony75264, xuid: 2533274865350919",
+		"[2026-08-19 01:30:22:503 INFO] Player connected: player_two, xuid: 2222222222222222",
+		"[2026-08-19 01:31:00:000 INFO] Player disconnected: player_one, xuid: 1111111111111111",
+		"[2026-08-19 01:32:00:000 INFO] player_two issued server command: /time set day",
+		"[2026-08-19 01:33:00:000 INFO] Player connected: player_one, xuid: 1111111111111111",
 	})
-	out := FilterEntries(in, LogFilters{Player: "breal875623"})
+	out := FilterEntries(in, LogFilters{Player: "player_two"})
 	if len(out) != 2 {
 		t.Fatalf("got %d entries %q, want 2 (connect + command mention)", len(out), out)
 	}
@@ -106,7 +106,7 @@ func TestFilterEntries_Player(t *testing.T) {
 		t.Fatalf("wrong lines kept: %q", out)
 	}
 
-	out = FilterEntries(in, LogFilters{Player: "tony75264"})
+	out = FilterEntries(in, LogFilters{Player: "PLAYER_TWO"})
 	if len(out) != 2 {
 		t.Fatalf("case-insensitive match failed: got %d entries %q", len(out), out)
 	}
@@ -114,7 +114,7 @@ func TestFilterEntries_Player(t *testing.T) {
 
 func TestFilterEntries_PlayerNoMatch(t *testing.T) {
 	in := ParseEntries([]string{
-		"[2026-08-19 01:30:22:503 INFO] Player connected: breal875623, xuid: 2535465377145824",
+		"[2026-08-19 01:30:22:503 INFO] Player connected: player_two, xuid: 2222222222222222",
 	})
 	out := FilterEntries(in, LogFilters{Player: "someoneelse"})
 	if len(out) != 0 {
@@ -144,17 +144,17 @@ func TestFilterEntries_TimeRange(t *testing.T) {
 
 func TestFilterEntries_Composed(t *testing.T) {
 	in := ParseEntries([]string{
-		"[2026-08-19 01:30:22:503 INFO] Player connected: breal875623, xuid: 2535465377145824",
+		"[2026-08-19 01:30:22:503 INFO] Player connected: player_two, xuid: 2222222222222222",
 		"[2026-08-19 01:31:00:000 WARN] Disk almost full",
-		"[2026-08-19 02:30:00:000 ERROR] breal875623 kicked for cheating",
+		"[2026-08-19 02:30:00:000 ERROR] player_two kicked for cheating",
 	})
 	f := LogFilters{
-		Player: "breal875623",
+		Player: "player_two",
 		Level:  "ERROR",
 		Since:  time.Date(2026, 8, 19, 2, 0, 0, 0, time.Local),
 	}
 	out := FilterEntries(in, f)
-	if len(out) != 1 || out[0].Text != "[2026-08-19 02:30:00:000 ERROR] breal875623 kicked for cheating" {
+	if len(out) != 1 || out[0].Text != "[2026-08-19 02:30:00:000 ERROR] player_two kicked for cheating" {
 		t.Fatalf("got %q", out)
 	}
 }

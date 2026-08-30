@@ -37,7 +37,7 @@ var logSample = []string{
 	"[2026-08-19 01:30:22:503 INFO] Server started.",
 	"[2026-08-19 01:31:00:000 WARN] Disk almost full",
 	"[2026-08-19 01:32:00:000 ERROR] Crash dump written",
-	"[2026-08-19 01:33:00:000 INFO] Player connected: breal875623, xuid: 2535465377145824",
+	"[2026-08-19 01:33:00:000 INFO] Player connected: player_two, xuid: 2222222222222222",
 }
 
 func TestLogs_View_Snapshot(t *testing.T) {
@@ -50,7 +50,7 @@ func TestLogs_View_Snapshot(t *testing.T) {
 		"Server started.",
 		"Disk almost full",
 		"Crash dump written",
-		"Player connected: breal875623",
+		"Player connected: player_two",
 		"level:all",
 	} {
 		if !strings.Contains(view, want) {
@@ -123,17 +123,17 @@ func TestLogs_PlayerFilterInput(t *testing.T) {
 	if !s.CapturingKeys() {
 		t.Fatal("f should open the player field and capture keys")
 	}
-	typeInto(t, s, "breal875623")
+	typeInto(t, s, "player_two")
 	s.Update(tea.KeyMsg{Type: tea.KeyEnter})
 
 	view := s.View()
-	if !strings.Contains(view, "player:breal875623") {
+	if !strings.Contains(view, "player:player_two") {
 		t.Fatalf("player filter not shown:\n%s", view)
 	}
 	if strings.Contains(view, "Server started.") || strings.Contains(view, "Crash dump written") {
 		t.Fatalf("unrelated lines must be filtered out:\n%s", view)
 	}
-	if !strings.Contains(view, "Player connected: breal875623") {
+	if !strings.Contains(view, "Player connected: player_two") {
 		t.Fatalf("the player's own line must remain:\n%s", view)
 	}
 
@@ -277,7 +277,7 @@ func TestLogs_PollAppendsAndAdvancesCursor(t *testing.T) {
 	s.Update(logsPollMsg{entries: compass.ParseEntries(logSample[2:]), cursor: "cur-2"})
 
 	view := s.View()
-	if !strings.Contains(view, "Crash dump written") || !strings.Contains(view, "Player connected: breal875623") {
+	if !strings.Contains(view, "Crash dump written") || !strings.Contains(view, "Player connected: player_two") {
 		t.Fatalf("polled lines should be appended:\n%s", view)
 	}
 	if s.cursor != "cur-2" {

@@ -17,7 +17,7 @@ func TestAppend_Recent_Order(t *testing.T) {
 	for i, verb := range []string{"backup", "kick", "restart"} {
 		ev := Event{Time: base.Add(time.Duration(i) * time.Minute), Verb: verb, Result: "ok"}
 		if verb == "kick" {
-			ev.Params = map[string]string{"player": "Tony75264"}
+			ev.Params = map[string]string{"player": "player_one"}
 		}
 		if err := trail.Append(ev); err != nil {
 			t.Fatalf("Append: %v", err)
@@ -33,7 +33,7 @@ func TestAppend_Recent_Order(t *testing.T) {
 	if got[0].Verb != "restart" || got[1].Verb != "kick" {
 		t.Errorf("most-recent-first order broken: %q, %q", got[0].Verb, got[1].Verb)
 	}
-	if got[1].Params["player"] != "Tony75264" {
+	if got[1].Params["player"] != "player_one" {
 		t.Errorf("params lost: %+v", got[1].Params)
 	}
 }
