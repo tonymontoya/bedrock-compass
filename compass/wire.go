@@ -59,6 +59,13 @@ type Stack struct {
 	// Built even when no channel resolved — Send then degrades to a clean error
 	// (still audited) rather than panicking.
 	RawConsole *RawConsole
+	// Props is the server.properties surface (#11): read the keys with
+	// hot/cold classification and per-key allowed-values help, validate
+	// values, write atomically with before/after audit, apply hot keys live
+	// through the console (setmaxplayers / changesetting), and restart the
+	// server so queued cold changes take effect. The TUI's Config screen
+	// renders it; nothing else knows about the other.
+	Props *Props
 }
 
 // StackOpts are the options for NewStack.
@@ -148,6 +155,12 @@ func NewStack(ctx context.Context, cfg *Config, version string, opts StackOpts) 
 	// still leaves a trace in the audit trail.
 	rawConsole := NewRawConsole(console, trail)
 
+	// The props service (#11) needs the server dir (server.properties), the
+	// console channel (hot apply), the audit trail, and the lifecycle (the
+	// restart that makes queued cold changes take effect). It is built even
+	// when the console is nil: reads, validation, and cold writes still work.
+	props := NewProps(cfg, console, trail, lifecycle)
+
 	bin := opts.BinaryPath
 	if bin == "" {
 		if p, err := os.Executable(); err == nil {
@@ -186,6 +199,7 @@ func NewStack(ctx context.Context, cfg *Config, version string, opts StackOpts) 
 		Access:     access,
 		Logs:       logs,
 		RawConsole: rawConsole,
+		Props:      props,
 	}, nil
 }
 

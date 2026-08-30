@@ -333,6 +333,11 @@ func runTUI(rest []string) int {
 	// screen (index 6) drives it and returns to the previous tab on Esc, so it
 	// needs the shell as its host for Toast + ExitConsole. It degrades to an
 	// "unavailable" state when no channel resolved.
+	// The Props service (#11) edits server.properties: the Config screen
+	// (index 5) renders the keys with hot/cold markers + per-key allowed
+	// values, applies hot keys live through the console (TierEnter), and
+	// applies cold keys at the restart tier (TierYes) with the restart in the
+	// same action.
 	stack, werr := compass.NewStack(ctx, cfg, version, compass.StackOpts{})
 	if werr != nil {
 		fmt.Fprintln(os.Stderr, "bedrock-compass: backup wiring degraded:", werr)
@@ -341,6 +346,7 @@ func runTUI(rest []string) int {
 		app.Screens[2] = tui.NewAccess(app, stack)
 		app.Screens[3] = tui.NewBackups(app, stack)
 		app.Screens[4] = tui.NewLogs(stack)
+		app.Screens[5] = tui.NewConfig(app, stack)
 		app.Screens[6] = tui.NewConsole(app, stack)
 		// The Server screen persists adoptions into the config file that was
 		// actually loaded (--config path, or the standard path), so a
