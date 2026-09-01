@@ -22,7 +22,8 @@ func stackCfg(t *testing.T) *Config {
 }
 
 func TestNewStack_SystemdWiresEverything(t *testing.T) {
-	st, err := NewStack(context.Background(), stackCfg(t), "1.26.430", StackOpts{
+	cfg := stackCfg(t)
+	st, err := NewStack(context.Background(), cfg, "1.26.430", StackOpts{
 		ConfigPath: "/etc/bedrock-compass/config.yaml",
 		BinaryPath: "/usr/local/bin/bedrock-compass",
 	})
@@ -64,6 +65,43 @@ func TestNewStack_SystemdWiresEverything(t *testing.T) {
 	}
 	if st.RawConsole.Trail == nil {
 		t.Error("RawConsole.Trail is nil, want the audit trail (raw commands are always audited)")
+	}
+
+	// Props (#11) is built with the resolved config, console, trail and the
+	// restart path.
+	if st.Props == nil {
+		t.Error("Props is nil, want the server.properties surface")
+	}
+	if st.Props.Trail == nil {
+		t.Error("Props.Trail is nil, want the audit trail")
+	}
+	if st.Props.Lifecycle == nil {
+		t.Error("Props.Lifecycle is nil, want the restart path for cold keys")
+	}
+	if st.Props.Console == nil {
+		t.Error("Props.Console is nil, want the console channel for hot apply")
+	}
+	if st.Props.Cfg == nil {
+		t.Error("Props.Cfg is nil, want the resolved config")
+	}
+	if st.Props.Cfg.ServerDir != cfg.ServerDir {
+		t.Errorf("Props.Cfg.ServerDir = %q, want the resolved server dir", st.Props.Cfg.ServerDir)
+	}
+
+	// Provision (#14) is built unconditionally with a real joinability probe
+	// and the audit trail: a fresh host with nothing running is exactly the
+	// case it exists to serve.
+	if st.Provision == nil {
+		t.Error("Provision is nil, want the install/adopt surface")
+	}
+	if st.Provision.Trail == nil {
+		t.Error("Provision.Trail is nil, want the audit trail")
+	}
+	if st.Provision.Env == nil {
+		t.Error("Provision.Env is nil, want the resolved host env")
+	}
+	if st.Provision.Verify == nil {
+		t.Error("Provision.Verify is nil, want the joinability probe")
 	}
 }
 

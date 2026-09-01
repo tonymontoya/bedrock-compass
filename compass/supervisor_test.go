@@ -21,8 +21,15 @@ func (f *fakeExec) run(ctx context.Context, name string, args ...string) ([]byte
 	f.mu.Lock()
 	f.calls = append(f.calls, name+" "+strings.Join(args, " "))
 	f.mu.Unlock()
+	full := name + " " + strings.Join(args, " ")
+	if err, ok := f.fail[full]; ok {
+		return nil, err
+	}
 	if err, ok := f.fail[name]; ok {
 		return nil, err
+	}
+	if out, ok := f.output[full]; ok {
+		return out, nil
 	}
 	if out, ok := f.output[name]; ok {
 		return out, nil
@@ -39,6 +46,14 @@ func (f *fakeExec) called(cmd string) bool {
 		}
 	}
 	return false
+}
+
+func (f *fakeExec) callsSnapshot() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]string, len(f.calls))
+	copy(out, f.calls)
+	return out
 }
 
 func TestSupervisor_Systemd_StopStartRunning(t *testing.T) {

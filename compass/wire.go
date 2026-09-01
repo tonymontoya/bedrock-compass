@@ -66,6 +66,13 @@ type Stack struct {
 	// server so queued cold changes take effect. The TUI's Config screen
 	// renders it; nothing else knows about the other.
 	Props *Props
+	// Provision is the install/adopt surface (#14): plan and apply a fresh
+	// server deployment (systemd or tmux), idempotent, audited, and
+	// joinability-verified. The TUI's Server screen renders the Provision
+	// section; nothing else knows about the other. It is built unconditionally
+	// (no resolved channel required) so a fresh host with nothing running can
+	// still be provisioned.
+	Provision *Provision
 }
 
 // StackOpts are the options for NewStack.
@@ -161,6 +168,19 @@ func NewStack(ctx context.Context, cfg *Config, version string, opts StackOpts) 
 	// when the console is nil: reads, validation, and cold writes still work.
 	props := NewProps(cfg, console, trail, lifecycle)
 
+	// The provision service (#14) installs/adopts a fresh deployment. It needs
+	// the host env (root? user?), the audit trail, and a joinability probe.
+	// It is built unconditionally: a fresh host with no running server (no
+	// resolved channel) is exactly the case it exists to serve.
+	provision := &Provision{
+		Env:   ResolveProvisionEnv(),
+		Trail: trail,
+		Verify: func(ctx context.Context, addr string) error {
+			_, err := NewPinger(addr).Ping(ctx)
+			return err
+		},
+	}
+
 	bin := opts.BinaryPath
 	if bin == "" {
 		if p, err := os.Executable(); err == nil {
@@ -200,6 +220,7 @@ func NewStack(ctx context.Context, cfg *Config, version string, opts StackOpts) 
 		Logs:       logs,
 		RawConsole: rawConsole,
 		Props:      props,
+		Provision:  provision,
 	}, nil
 }
 

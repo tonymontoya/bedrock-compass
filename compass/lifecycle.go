@@ -186,13 +186,22 @@ func (l *Lifecycle) Status(ctx context.Context) LifecycleStatus {
 // "console …") but carry no "adopt:" prefix of their own: both callers
 // (the TUI's Server screen toast and the headless verb) prepend the action
 // label, so a self-prefix would render as "adopt: adopt: …".
-func (l *Lifecycle) Adopt(ctx context.Context) (*Adopted, error) {
+//
+// portHint is the port to probe: the port a just-provisioned deployment
+// actually came up on (K-01), which the config does not yet carry. When it
+// is 0, the configured port is probed instead (the general adopt case — the
+// headless verb, or an adopt with no fresh provision), falling back to the
+// BDS default 19132.
+func (l *Lifecycle) Adopt(ctx context.Context, portHint int) (*Adopted, error) {
 	disc, err := l.Discover(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("discover failed: %w", err)
 	}
 
-	port := l.Cfg.Port
+	port := portHint
+	if port <= 0 {
+		port = l.Cfg.Port
+	}
 	if port <= 0 {
 		port = 19132
 	}

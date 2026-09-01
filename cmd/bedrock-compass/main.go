@@ -168,7 +168,7 @@ func runLifecycle(cmd string, rest []string) int {
 		auditCLI(st.Trail, "status", map[string]string{}, nil, start)
 		return 0
 	case "adopt":
-		a, err := st.Lifecycle.Adopt(ctx)
+		a, err := st.Lifecycle.Adopt(ctx, 0)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "bedrock-compass adopt: %v\n", err)
 			auditCLI(st.Trail, "adopt", map[string]string{}, err, start)

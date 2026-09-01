@@ -261,7 +261,7 @@ func TestIntegration_Lifecycle_Adopt(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	a, err := lc.Adopt(ctx)
+	a, err := lc.Adopt(ctx, 0)
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}

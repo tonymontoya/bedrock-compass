@@ -202,7 +202,7 @@ func TestLifecycle_Adopt_ErrorHasNoDoublePrefix(t *testing.T) {
 		return nil, errors.New("two bedrock_server processes on this host")
 	}
 
-	_, err := lc.Adopt(context.Background())
+	_, err := lc.Adopt(context.Background(), 0)
 	if err == nil {
 		t.Fatal("Adopt must fail when discovery fails")
 	}
@@ -328,7 +328,7 @@ func TestLifecycle_Adopt_HappyPath(t *testing.T) {
 	// either the real FIFO or the documented default — both acceptable.
 	_ = tr
 
-	a, err := lc.Adopt(context.Background())
+	a, err := lc.Adopt(context.Background(), 0)
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}
@@ -349,6 +349,61 @@ func TestLifecycle_Adopt_HappyPath(t *testing.T) {
 	}
 }
 
+// K-01: after provisioning a deployment on a non-default port, the one-click
+// adopt must probe THAT port, not the (stale) configured port. The port hint
+// is what the TUI passes when a provision was just applied.
+func TestLifecycle_Adopt_PortHintOverridesConfiguredPort(t *testing.T) {
+	lc, _ := newTestLifecycle(t, nil, nil)
+	lc.Cfg = &Config{Port: 19142} // a stale configured port from an old deployment
+	lc.Discover = func(ctx context.Context) (*Discovered, error) {
+		return &Discovered{PID: 1234, Dir: "/srv/mc", Unit: "minecraft-bedrock.service"}, nil
+	}
+	var probed string
+	lc.Ping = func(ctx context.Context, addr string) (Pong, error) {
+		probed = addr
+		return Pong{Name: "fresh", Online: 0, MaxPlayers: 2}, nil
+	}
+	lc.ConsoleCheck = func(ctx context.Context, c *Console) (string, error) {
+		return "0/2 players online", nil
+	}
+
+	a, err := lc.Adopt(context.Background(), 19200)
+	if err != nil {
+		t.Fatalf("Adopt: %v", err)
+	}
+	if probed != "127.0.0.1:19200" {
+		t.Errorf("probed %q, want the port hint 127.0.0.1:19200 (not the stale configured 127.0.0.1:19142)", probed)
+	}
+	if a.Port != 19200 {
+		t.Errorf("Adopted.Port = %d, want the port hint 19200", a.Port)
+	}
+}
+
+// A port hint of 0 means "use the configured/default port" (the general
+// adopt case — headless verb, or an adopt with no fresh provision).
+func TestLifecycle_Adopt_ZeroHintFallsBackToConfiguredPort(t *testing.T) {
+	lc, _ := newTestLifecycle(t, nil, nil)
+	lc.Cfg = &Config{Port: 19142}
+	lc.Discover = func(ctx context.Context) (*Discovered, error) {
+		return &Discovered{PID: 1234, Dir: "/srv/mc", Unit: "minecraft-bedrock.service"}, nil
+	}
+	var probed string
+	lc.Ping = func(ctx context.Context, addr string) (Pong, error) {
+		probed = addr
+		return Pong{Name: "prod", Online: 0, MaxPlayers: 2}, nil
+	}
+	lc.ConsoleCheck = func(ctx context.Context, c *Console) (string, error) {
+		return "0/2 players online", nil
+	}
+
+	if _, err := lc.Adopt(context.Background(), 0); err != nil {
+		t.Fatalf("Adopt: %v", err)
+	}
+	if probed != "127.0.0.1:19142" {
+		t.Errorf("probed %q, want the configured port 127.0.0.1:19142 when the hint is 0", probed)
+	}
+}
+
 func TestLifecycle_Adopt_PongFails_NoClaim(t *testing.T) {
 	lc, _ := newTestLifecycle(t, nil, nil)
 	lc.Cfg = adoptCfg()
@@ -364,7 +419,7 @@ func TestLifecycle_Adopt_PongFails_NoClaim(t *testing.T) {
 		return "players online", nil
 	}
 
-	if _, err := lc.Adopt(context.Background()); err == nil {
+	if _, err := lc.Adopt(context.Background(), 0); err == nil {
 		t.Fatal("Adopt must fail when the pong probe fails")
 	} else if !strings.Contains(err.Error(), "pong") {
 		t.Errorf("error = %v, want it to name the failed pong probe", err)
@@ -387,7 +442,7 @@ func TestLifecycle_Adopt_ConsoleNotARoster_Rejected(t *testing.T) {
 		return "some other output without a roster", nil
 	}
 
-	if _, err := lc.Adopt(context.Background()); err == nil {
+	if _, err := lc.Adopt(context.Background(), 0); err == nil {
 		t.Fatal("Adopt must reject a console reply that is not a roster line")
 	} else if !strings.Contains(err.Error(), "roster") {
 		t.Errorf("error = %v, want it to name the missing roster line", err)
@@ -405,7 +460,7 @@ func TestLifecycle_Adopt_DiscoverFails(t *testing.T) {
 		return Pong{}, nil
 	}
 
-	if _, err := lc.Adopt(context.Background()); err == nil {
+	if _, err := lc.Adopt(context.Background(), 0); err == nil {
 		t.Fatal("Adopt must fail when discovery fails")
 	} else if !strings.Contains(err.Error(), "discover") {
 		t.Errorf("error = %v, want it to name the discovery failure", err)
@@ -422,7 +477,7 @@ func TestLifecycle_Adopt_NoUnitNoPane_NoChannel(t *testing.T) {
 		return Pong{}, nil
 	}
 
-	_, err := lc.Adopt(context.Background())
+	_, err := lc.Adopt(context.Background(), 0)
 	if err == nil {
 		t.Fatal("Adopt must fail when there is no unit and no pane to verify over")
 	}
