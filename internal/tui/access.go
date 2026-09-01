@@ -577,7 +577,7 @@ func (a *Access) View() string {
 			lines = append(lines, hintStyle.Render("  source: "+a.gate.Source))
 		}
 		if a.gate.Enabled {
-			lines = append(lines, toastErr.Render("  ⚠ Every player not on the allowlist is rejected."))
+			lines = append(lines, toastErr.Render("  Every player not on the allowlist is rejected."))
 		} else {
 			lines = append(lines, hintStyle.Render("  (gate off — anyone may join)"))
 		}
