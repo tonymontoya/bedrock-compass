@@ -153,8 +153,9 @@ var coreConfigFiles = []string{
 
 // LiveBackup takes a consistent backup of a running server: hold saves,
 // snapshot the listed world files plus the core config, resume saves.
-// The always-resume invariant holds on every exit path after a successful
-// hold (Q4/ADR-0006).
+// The always-resume invariant holds on every exit path after a confirmed hold
+// (Q4/ADR-0006), and also when `save hold` was dispatched but no response could be
+// observed — the tool must not leave open a window it may itself have created.
 func (e *Engine) LiveBackup(ctx context.Context) (*Backup, error) {
 	if err := e.check(); err != nil {
 		return nil, err
@@ -178,8 +179,15 @@ func (e *Engine) LiveBackup(ctx context.Context) (*Backup, error) {
 	}
 
 	e.setLockPhase("hold")
-	out, err := e.Console.Send(ctx, "save hold")
+	out, err := e.Console.SendExpecting(ctx, "save hold")
 	if err != nil {
+		// Nothing was observed after dispatching `save hold`: the tool cannot tell
+		// whether the hold landed, so it must close the window it opened (B-04).
+		// When the server did answer with something else, no hold exists and a resume
+		// would be an invented action.
+		if oneLine(out) == "" {
+			e.bestEffortResume()
+		}
 		return nil, e.failBackup(ModeLive, "", start, fmt.Errorf("save hold: %w", err))
 	}
 	if strings.Contains(out, prevSaveIncomplete) {

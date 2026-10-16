@@ -105,6 +105,28 @@ func TestHarvest_SilentCommandSettles(t *testing.T) {
 	}
 }
 
+// For a command whose reply the caller must parse, silence is not an answer: it
+// must not settle on zero lines — that is how the `Saving...` line was lost in the
+// live incident (B-04), because the first response landed 641 ms after the send and
+// the harvest had already settled at 500 ms.
+func TestHarvest_RequiredFirstLineIgnoresSilence(t *testing.T) {
+	h := &Harvest{Quiesce: 50 * time.Millisecond, Timeout: 200 * time.Millisecond, RequireFirstLine: true}
+	base := time.Now()
+	samples := []Sample{
+		{Count: 0, At: base},
+		{Count: 0, At: base.Add(60 * time.Millisecond)},  // quiet, but no line yet → must not settle
+		{Count: 0, At: base.Add(120 * time.Millisecond)}, // same
+		{Count: 0, At: base.Add(210 * time.Millisecond)}, // hard cap wins instead of a silent settle
+	}
+	doneAt, err := feedAndExpect(t, h, samples)
+	if doneAt != len(samples)-1 {
+		t.Fatalf("done at sample %d (err=%v), want %d", doneAt, err, len(samples)-1)
+	}
+	if err != ErrTimeout {
+		t.Fatalf("err=%v, want ErrTimeout", err)
+	}
+}
+
 func TestHarvest_FirstSampleNeverDone(t *testing.T) {
 	h := &Harvest{Quiesce: 1 * time.Millisecond, Timeout: 1 * time.Millisecond}
 	done, err := h.Feed(Sample{Count: 99, At: time.Now()})

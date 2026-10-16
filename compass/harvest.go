@@ -21,8 +21,9 @@ type Sample struct {
 // command is complete when its output goes quiet for Quiesce, hard-capped
 // by Timeout.
 type Harvest struct {
-	Quiesce time.Duration // quiet span that settles output (e.g. 500 ms)
-	Timeout time.Duration // hard cap from the first sample (e.g. 15 s)
+	Quiesce          time.Duration // quiet span that settles output (e.g. 500 ms)
+	Timeout          time.Duration // hard cap from the first sample (e.g. 15 s)
+	RequireFirstLine bool          // for commands whose reply must be parsed: silence cannot settle
 
 	start      time.Time
 	lastChange time.Time
@@ -47,6 +48,12 @@ func (h *Harvest) Feed(s Sample) (bool, error) {
 	if s.Count > h.lastCount {
 		h.lastCount = s.Count
 		h.lastChange = s.At
+		return false, nil
+	}
+	// For a command whose reply the caller must parse, silence is not an answer.
+	// Settling on zero lines is what lost the `Saving...` response in the live
+	// incident (B-04): it landed 641 ms after the send, past the quiescence window.
+	if h.RequireFirstLine && h.lastCount == 0 {
 		return false, nil
 	}
 	if s.At.Sub(h.lastChange) >= h.Quiesce {

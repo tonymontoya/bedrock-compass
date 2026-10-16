@@ -16,6 +16,10 @@ conversation all use them.
   tool's architecture it is a FIFO wired by the service supervisor (see
   ADR-0001); "send a command" always means "write a line to the console
   channel".
+- **required-response command** — a console command whose reply the caller must parse
+  (the save hold/query/resume set): silence is not an answer, so completion waits for
+  the first response line. The opposite is a **silent-success command** (`kick`, `op`,
+  `reload`), where quiet *is* the answer.
 - **host-level** — the tool runs on the server host and uses local facilities
   (files, journal, /proc, firewall) in addition to the console channel.
   Distinguishes us from remote/web managers.
@@ -54,7 +58,10 @@ conversation all use them.
 - **interrupted save** — a live backup that died between `save hold` and
   `save resume`; always detectable (stale backup lock) and finishable with
   a one-key `save resume`. A server must never be left stuck in hold
-  undetectably.
+  undetectably. If the engine dispatched `save hold` but could not observe any
+  response, it cannot prove no hold was created, so it closes the window it opened
+  (best-effort `save resume`); when the server answered with something else — so no
+  hold exists — the engine does not invent a resume.
 - **backup lock** — the shared claim that only one mutating backup
   operation runs at a time (TUI and timer alike); its recorded state is
   what makes an interrupted save detectable.

@@ -68,13 +68,25 @@ func NewTmuxConsole(pane string, policy ConsolePolicy) *Console {
 	}
 }
 
-// Send issues one command and returns its output, lines joined with "\n".
-// If the output never settles, the error wraps ErrTimeout and the partial
-// output captured so far is still returned. A canceled ctx returns the
-// partial output with the context error.
+// Send issues one command and returns its output, lines joined with "\n". Silence is a
+// valid answer here — many console commands (kick, op, reload) reply with nothing on
+// success. If the output never settles, the error wraps ErrTimeout and the partial
+// output captured so far is still returned. A canceled ctx returns the partial output
+// with the context error.
 func (c *Console) Send(ctx context.Context, command string) (string, error) {
+	return c.send(ctx, command, false)
+}
+
+// SendExpecting issues one command whose reply the caller must parse: silence is not
+// accepted as an answer, so harvesting waits for the first line up to Timeout. Use it
+// for protocol commands that always answer, such as the save hold/query/resume set.
+func (c *Console) SendExpecting(ctx context.Context, command string) (string, error) {
+	return c.send(ctx, command, true)
+}
+
+func (c *Console) send(ctx context.Context, command string, requireFirstLine bool) (string, error) {
 	pol := c.Policy.withDefaults()
-	h := &Harvest{Quiesce: pol.Quiesce, Timeout: pol.Timeout}
+	h := &Harvest{Quiesce: pol.Quiesce, Timeout: pol.Timeout, RequireFirstLine: requireFirstLine}
 
 	token, err := c.Baseline(ctx)
 	if err != nil {

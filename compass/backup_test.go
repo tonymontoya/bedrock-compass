@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -278,6 +279,46 @@ func TestEngine_LiveBackup_PreviousSaveIncomplete_HardError(t *testing.T) {
 	_, err := e.LiveBackup(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "previous save") {
 		t.Fatalf("err = %v, want a hard previous-save error", err)
+	}
+}
+
+// The always-resume invariant covers the hold once it has been dispatched, not only
+// once its response was confirmed: when nothing at all comes back, the tool cannot
+// know whether the hold landed, so it must close the window it opened (B-04).
+func TestEngine_LiveBackup_HoldResponseNeverObserved_StillResumes(t *testing.T) {
+	var mu sync.Mutex
+	var sent []string
+	c := &Console{
+		Write: func(ctx context.Context, line string) error {
+			mu.Lock()
+			sent = append(sent, line)
+			mu.Unlock()
+			return nil
+		},
+		Baseline: func(ctx context.Context) (string, error) { return "tok", nil },
+		NewSince: func(ctx context.Context, token string) ([]string, error) { return nil, nil },
+		Policy:   ConsolePolicy{Quiesce: 1 * time.Millisecond, Timeout: 20 * time.Millisecond, Poll: 1 * time.Millisecond},
+	}
+	backupDir := t.TempDir()
+	e := &Engine{
+		ServerDir: newFixtureServer(t),
+		BackupDir: backupDir,
+		Retention: 7,
+		Console:   c,
+	}
+
+	_, err := e.LiveBackup(context.Background())
+	if err == nil {
+		t.Fatal("LiveBackup with no observable hold response must fail")
+	}
+	want := []string{"save hold", "save resume"}
+	if len(sent) != len(want) {
+		t.Fatalf("console commands = %v, want %v (a hold we dispatched must be closed)", sent, want)
+	}
+	for i := range want {
+		if sent[i] != want[i] {
+			t.Fatalf("console commands = %v, want %v", sent, want)
+		}
 	}
 }
 

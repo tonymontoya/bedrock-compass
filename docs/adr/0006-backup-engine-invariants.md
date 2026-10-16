@@ -1,6 +1,6 @@
 # ADR-0006: Backup engine invariants — always-resume, lock + recovery, manifest as completion
 
-**Status:** accepted (2026-08-16)
+**Status:** accepted (2026-08-16), amended 2026-10-16 (B-04)
 **Decisions ref:** D7 (revised), D11 — ticket #9 grill
 
 The backup engine treats `save hold → copy → save resume` as one critical
@@ -10,6 +10,17 @@ cancellation, process death. A world left in hold state is the single
 worst failure mode (server stuck, players frozen), so the engine trades
 "backup completes" for "server is never stuck": a failed copy resumes the
 world *first*, then reports the error.
+
+**Amended 2026-10-16 (B-04, verified live on prod):** the invariant also covers a hold
+that was dispatched but whose response could not be observed. Harvesting read silence as
+"settled" 500 ms after the send while `Saving...` landed at 641 ms, so the engine
+reported `save hold: unexpected response ""` and left the world in an active hold — no
+lock, no manifest, nothing to detect, and no resume because the hold had never been
+*confirmed*. Two rules follow: a required-response command is complete only after its
+first line (silence cannot settle it), and when no response was observed after dispatch
+the engine closes the window it may itself have created. If the server did answer with
+something other than the hold confirmation, no hold exists and the engine must still not
+invent a resume.
 
 To make process death recoverable, every mutating engine operation (live
 backup, stop-and-copy, restore) holds a lock file in the backup dir, with
@@ -56,13 +67,17 @@ the server, so no mutation ever leaves the deployment stopped by accident.
 ## Consequences
 
 + A stuck-in-hold server is always detectable (stale lock + phase) and
-  finishable in one action.
+  finishable in one action; a hold the engine dispatched but could not confirm is
+  closed by the engine itself before it reports the failure.
 + "Backup" is unambiguous: manifest present ⇔ restorable.
 + The engine stays TUI-free (D15) and fully testable offline with fake
   console/supervisor (D14).
 - The operator needs read/write on the server dir and permission to manage
   the unit (sudo or a polkit rule scoped to it); neither is required to
   *install* or run read-only features.
+- A required-response command that gets no reply now costs the caller up to the harvest
+  Timeout instead of the Quiesce window; that is the price of not mistaking silence for
+  an answer, which is why silent-success commands (kick/op/reload) keep quiet-settle.
 - Moving the unit to a dedicated user (e.g. `User=minecraft`) is a later
   deployment hardening (#13/#14): shared-group ownership of the server
   tree must be set up then, or restore writes break.
