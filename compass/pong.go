@@ -111,12 +111,22 @@ func (p *Pinger) Ping(ctx context.Context) (Pong, error) {
 	return ParsePong(motd)
 }
 
-// pongRequest builds the UnconnectedPong request packet: id 0x00 + an 8-byte
-// random GUID.
+// pongMagic is the Bedrock offline-message magic. The classic RakNet value quoted in most
+// legacy docs is silently dropped by BDS 1.26.x — no log line, just a black hole — so the
+// value below is load-bearing (verified live on prod 2026-09-18).
+var pongMagic = []byte{
+	0x00, 0xff, 0xff, 0x00, 0xfe, 0xfe, 0xfe, 0xfe,
+	0xfd, 0xfd, 0xfd, 0xfd, 0x12, 0x34, 0x56, 0x78,
+}
+
+// pongRequest builds the UnconnectedPing that current BDS answers: id 0x01 + time (8) +
+// Bedrock magic (16) + client GUID (8), 33 bytes total.
 func pongRequest() []byte {
-	b := make([]byte, 12)
-	binary.BigEndian.PutUint32(b[0:4], 0x00)
-	_, _ = rand.Read(b[4:12])
+	b := make([]byte, 33)
+	b[0] = 0x01
+	binary.BigEndian.PutUint64(b[1:9], uint64(time.Now().UnixMilli()))
+	copy(b[9:25], pongMagic)
+	_, _ = rand.Read(b[25:33])
 	return b
 }
 
@@ -129,10 +139,15 @@ func extractMOTD(raw []byte) (string, error) {
 		return "", errors.New("no MCPE MOTD in pong reply")
 	}
 	j := bytes.IndexByte(raw[i:], 0)
-	if j < 0 {
-		return "", errors.New("unterminated MOTD in pong reply")
+	if j >= 0 {
+		return string(raw[i : i+j]), nil
 	}
-	return string(raw[i : i+j]), nil
+	// No terminator: current BDS sends the advertisement as a length-prefixed string, so
+	// the byte before the marker is its length.
+	if i > 0 && i+int(raw[i-1]) <= len(raw) {
+		return string(raw[i : i+int(raw[i-1])]), nil
+	}
+	return "", errors.New("unterminated MOTD in pong reply")
 }
 
 // udpExchange performs the production UDP round-trip.

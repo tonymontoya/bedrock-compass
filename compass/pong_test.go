@@ -1,20 +1,48 @@
 package compass
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"testing"
 )
 
+// bedrockMagic is the documented Bedrock offline-message magic, independent of this
+// implementation: 00 FF FF 00 FE FE FE FE FD FD FD FD 12 34 56 78. The classic RakNet
+// magic (all-FF alternating) is silently dropped by BDS 1.26.x — verified live on prod
+// 2026-09-18, where the classic ping timed out while this format answered in ~1 ms.
+var bedrockMagic = []byte{
+	0x00, 0xff, 0xff, 0x00, 0xfe, 0xfe, 0xfe, 0xfe,
+	0xfd, 0xfd, 0xfd, 0xfd, 0x12, 0x34, 0x56, 0x78,
+}
+
+// The liveness probe is only correct if it sends the format current BDS answers: an
+// UnconnectedPing of id 0x01 + time(8) + magic(16) + GUID(8).
+func TestPongRequest_IsTheBedrockFormat(t *testing.T) {
+	pkt := pongRequest()
+	if len(pkt) != 33 {
+		t.Fatalf("packet = %d bytes, want 33 (id + time + magic + guid)", len(pkt))
+	}
+	if pkt[0] != 0x01 {
+		t.Errorf("packet id = %#02x, want 0x01 (ID_UNCONNECTED_PING)", pkt[0])
+	}
+	if !bytes.Equal(pkt[9:25], bedrockMagic) {
+		t.Errorf("magic = % x, want the Bedrock value % x", pkt[9:25], bedrockMagic)
+	}
+	if bytes.Equal(pkt[25:33], make([]byte, 8)) {
+		t.Error("client GUID must be a value, not eight zero bytes")
+	}
+}
+
 // samplePong is the live-captured 1.26 advertisement from research/04.
-const samplePong = "MCPE;MontoyaWorld;2168;1.26.43;0;15;11741566103384811254;Bedrock level;Survival;1;19132;19133;0;1;0;"
+const samplePong = "MCPE;TestServer;2168;1.26.43;0;15;11741566103384811254;Bedrock level;Survival;1;19132;19133;0;1;0;"
 
 func TestParsePong_CapturedSample(t *testing.T) {
 	p, err := ParsePong(samplePong)
 	if err != nil {
 		t.Fatalf("ParsePong: %v", err)
 	}
-	if p.Name != "MontoyaWorld" {
+	if p.Name != "TestServer" {
 		t.Errorf("Name = %q", p.Name)
 	}
 	if p.Version != "1.26.43" {
@@ -78,8 +106,26 @@ func TestExtractMOTD(t *testing.T) {
 	if got != strings.TrimSuffix(samplePong, ";") && got != samplePong {
 		t.Errorf("MOTD = %q", got)
 	}
-	if !strings.HasPrefix(got, "MCPE;MontoyaWorld") {
-		t.Errorf("MOTD should start with MCPE;MontoyaWorld, got %q", got)
+	if !strings.HasPrefix(got, "MCPE;TestServer") {
+		t.Errorf("MOTD should start with MCPE;TestServer, got %q", got)
+	}
+}
+
+// Current BDS sends the advertisement as a length-prefixed string with no null
+// terminator (reply shape live-captured from prod 2026-10-16).
+func TestExtractMOTD_LengthDelimitedReply(t *testing.T) {
+	ad := "MCPE;TestWorld;2193;1.26.52;1;15;123;Bedrock level;Survival;1;19132;19133;0;1;0;"
+	// id 0x1c + time(8) + magic(16) + address field, then the string length (80) and ad.
+	head := []byte{0x1c, 0x43, 0xf1, 0xd1, 0x6a, 0, 0, 0, 0, 0x8a, 0x89, 0xf5, 0x59,
+		0xf6, 0x5b, 0x0b, 0x97, 0x00, 0xff, 0xff, 0x00, 0xfe, 0xfe, 0xfe, 0xfe,
+		0xfd, 0xfd, 0xfd, 0xfd, 0x12, 0x34, 0x56, 0x78, 0x00}
+	raw := append(append(head, 80), []byte(ad)...)
+	got, err := extractMOTD(raw)
+	if err != nil {
+		t.Fatalf("extractMOTD on a length-prefixed reply: %v", err)
+	}
+	if got != ad {
+		t.Errorf("MOTD = %q, want the whole advertisement %q", got, ad)
 	}
 }
 
@@ -95,8 +141,8 @@ func TestPinger_ParsesReply(t *testing.T) {
 	ping := &Pinger{
 		Addr: "127.0.0.1:19132",
 		exchange: func(ctx context.Context, addr string, req []byte) ([]byte, error) {
-			if len(req) != 12 {
-				t.Errorf("request length = %d, want 12", len(req))
+			if len(req) != 33 || !bytes.Equal(req[9:25], bedrockMagic) {
+				t.Errorf("request = % x, want the Bedrock UnconnectedPing (33 bytes)", req)
 			}
 			raw := make([]byte, 34)
 			raw = append(raw, []byte(samplePong)...)
@@ -108,7 +154,7 @@ func TestPinger_ParsesReply(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Ping: %v", err)
 	}
-	if p.Name != "MontoyaWorld" || p.MaxPlayers != 15 || p.Online != 0 {
+	if p.Name != "TestServer" || p.MaxPlayers != 15 || p.Online != 0 {
 		t.Errorf("got %+v", p)
 	}
 }
