@@ -69,7 +69,7 @@ func newAccessRig(t *testing.T, f *accessFakeConsole, props string, allowJSON []
 	if journalLines != nil {
 		jl := make([]string, len(journalLines))
 		for i, l := range journalLines {
-			jl[i] = "Aug 19 01:30:22 bds bedrock_server[4242]: " + l
+			jl[i] = "Aug 19 01:30:22 rig bedrock_server[4242]: " + l
 		}
 		j := &compass.Journal{Unit: "u"}
 		j.Exec = func(ctx context.Context, name string, args ...string) ([]byte, error) {
@@ -127,7 +127,7 @@ func TestAccess_View_AllowlistAndRecent(t *testing.T) {
 	st := newAccessRig(t, &accessFakeConsole{}, "allow-list=true\n", nil, nil)
 	s := NewAccess(host, st)
 	feedAccess(t, s, compass.GateState{Enabled: true},
-		[]compass.AllowEntry{{Name: "brea"}, {Name: "tony"}},
+		[]compass.AllowEntry{{Name: "brea"}, {Name: "player_one"}},
 		[]compass.RecentPlayer{
 			{Name: "oldfriend", State: "disconnected", LastSeen: time.Date(2026, 8, 18, 22, 4, 5, 0, time.UTC)},
 			{Name: "brea", State: "connected", LastSeen: time.Date(2026, 8, 19, 1, 30, 22, 0, time.UTC)},
@@ -138,7 +138,7 @@ func TestAccess_View_AllowlistAndRecent(t *testing.T) {
 	for _, want := range []string{
 		"Allowlist (2)",
 		"brea",
-		"tony",
+		"player_one",
 		"Recently connected (2)",
 		"oldfriend",
 		"(allowed)", // brea is on the allowlist, so its recent row is annotated

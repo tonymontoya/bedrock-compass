@@ -105,12 +105,12 @@ func TestStatusBar_PlaceholdersThenPopulated(t *testing.T) {
 		t.Errorf("expected players placeholder")
 	}
 	a.SetStatus(compass.Status{
-		State: "running", Name: "MontoyaWorld", Version: "1.26.43",
+		State: "running", Name: "TestServer", Version: "1.26.43",
 		Online: 3, Max: 15, CPUPct: 42,
 		RAMUsed: 3 * 1024 * 1024 * 1024, RAMTotal: 7 * 1024 * 1024 * 1024,
 	})
 	view := a.View()
-	for _, want := range []string{"MontoyaWorld", "1.26.43", "3/15 players", "42%", "3.0 GiB/7.0 GiB"} {
+	for _, want := range []string{"TestServer", "1.26.43", "3/15 players", "42%", "3.0 GiB/7.0 GiB"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("status bar missing %q\n%s", want, view)
 		}

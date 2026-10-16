@@ -15,7 +15,7 @@ import (
 // provision call may look like, and what it must reject. Expected errors
 // are substrings, so the message wording can evolve freely.
 func TestProvisionValidate(t *testing.T) {
-	nonRoot := &ProvisionEnv{IsRoot: false, CurrentUser: "tony"}
+	nonRoot := &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"}
 	root := &ProvisionEnv{IsRoot: true, CurrentUser: "root"}
 
 	base := ProvisionInput{
@@ -133,7 +133,7 @@ func TestProvisionValidate(t *testing.T) {
 func TestProvisionPlan_FreshSystemd(t *testing.T) {
 	f := &fakeExec{output: map[string][]byte{}}
 	p := &Provision{
-		Env:  &ProvisionEnv{IsRoot: false, CurrentUser: "tony"},
+		Env:  &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"},
 		Exec: f.run,
 	}
 	in := ProvisionInput{
@@ -205,7 +205,7 @@ func TestProvisionPlan_FreshTmux(t *testing.T) {
 	f := &fakeExec{output: map[string][]byte{}, fail: map[string]error{}}
 	f.fail["tmux has-session -t compass-test"] = errNotPresent // session absent
 	p := &Provision{
-		Env:  &ProvisionEnv{IsRoot: false, CurrentUser: "tony"},
+		Env:  &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"},
 		Exec: f.run,
 	}
 	in := ProvisionInput{
@@ -251,7 +251,7 @@ func TestProvisionPlan_FreshTmux(t *testing.T) {
 func TestProvisionPlan_DefaultsSystemdUser(t *testing.T) {
 	f := &fakeExec{output: map[string][]byte{}}
 	p := &Provision{
-		Env:  &ProvisionEnv{IsRoot: false, CurrentUser: "tony"},
+		Env:  &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"},
 		Exec: f.run,
 	}
 	in := ProvisionInput{
@@ -265,11 +265,11 @@ func TestProvisionPlan_DefaultsSystemdUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
-	if !strings.Contains(plan.UnitService, "User=tony") {
+	if !strings.Contains(plan.UnitService, "User=testuser") {
 		t.Errorf("UnitService should run as the current user:\n%s", plan.UnitService)
 	}
-	if plan.EffectiveUser != "tony" {
-		t.Errorf("EffectiveUser = %q, want tony", plan.EffectiveUser)
+	if plan.EffectiveUser != "testuser" {
+		t.Errorf("EffectiveUser = %q, want testuser", plan.EffectiveUser)
 	}
 }
 
@@ -303,7 +303,7 @@ func TestProvisionPlan_IdempotencyMatrix(t *testing.T) {
 			t.Fatal(err)
 		}
 		f := &fakeExec{output: map[string][]byte{}}
-		p := &Provision{Env: &ProvisionEnv{IsRoot: false, CurrentUser: "tony"}, Exec: f.run, UnitDir: unitDir}
+		p := &Provision{Env: &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"}, Exec: f.run, UnitDir: unitDir}
 		in := base
 		in.ServerDir = prepared(t)
 		plan, err := p.Plan(in)
@@ -317,7 +317,7 @@ func TestProvisionPlan_IdempotencyMatrix(t *testing.T) {
 
 	t.Run("systemd: dir present, unit missing -> wire-supervisor", func(t *testing.T) {
 		f := &fakeExec{output: map[string][]byte{}}
-		p := &Provision{Env: &ProvisionEnv{IsRoot: false, CurrentUser: "tony"}, Exec: f.run, UnitDir: t.TempDir()}
+		p := &Provision{Env: &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"}, Exec: f.run, UnitDir: t.TempDir()}
 		in := base
 		in.ServerDir = prepared(t)
 		plan, err := p.Plan(in)
@@ -338,7 +338,7 @@ func TestProvisionPlan_IdempotencyMatrix(t *testing.T) {
 			t.Fatal(err)
 		}
 		f := &fakeExec{output: map[string][]byte{}}
-		p := &Provision{Env: &ProvisionEnv{IsRoot: false, CurrentUser: "tony"}, Exec: f.run, UnitDir: unitDir}
+		p := &Provision{Env: &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"}, Exec: f.run, UnitDir: unitDir}
 		in := base
 		in.ServerDir = filepath.Join(t.TempDir(), "absent")
 		plan, err := p.Plan(in)
@@ -352,7 +352,7 @@ func TestProvisionPlan_IdempotencyMatrix(t *testing.T) {
 
 	t.Run("tmux: dir + session present -> noop", func(t *testing.T) {
 		f := &fakeExec{output: map[string][]byte{}} // has-session succeeds
-		p := &Provision{Env: &ProvisionEnv{IsRoot: false, CurrentUser: "tony"}, Exec: f.run}
+		p := &Provision{Env: &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"}, Exec: f.run}
 		in := base
 		in.Supervisor = "tmux"
 		in.ServerDir = prepared(t)
@@ -368,7 +368,7 @@ func TestProvisionPlan_IdempotencyMatrix(t *testing.T) {
 	t.Run("tmux: dir present, session missing -> wire-supervisor", func(t *testing.T) {
 		f := &fakeExec{output: map[string][]byte{}, fail: map[string]error{}}
 		f.fail["tmux has-session -t compass-test"] = errNotPresent
-		p := &Provision{Env: &ProvisionEnv{IsRoot: false, CurrentUser: "tony"}, Exec: f.run}
+		p := &Provision{Env: &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"}, Exec: f.run}
 		in := base
 		in.Supervisor = "tmux"
 		in.ServerDir = prepared(t)
@@ -383,7 +383,7 @@ func TestProvisionPlan_IdempotencyMatrix(t *testing.T) {
 
 	t.Run("tmux: session present, dir missing -> inconsistent", func(t *testing.T) {
 		f := &fakeExec{output: map[string][]byte{}} // has-session succeeds
-		p := &Provision{Env: &ProvisionEnv{IsRoot: false, CurrentUser: "tony"}, Exec: f.run}
+		p := &Provision{Env: &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"}, Exec: f.run}
 		in := base
 		in.Supervisor = "tmux"
 		in.ServerDir = filepath.Join(t.TempDir(), "absent")
@@ -402,7 +402,7 @@ func TestProvisionPlan_IdempotencyMatrix(t *testing.T) {
 // user, the tmux install hint when tmux is absent, and nothing when all is
 // well.
 func TestProvisionPlan_Prerequisites(t *testing.T) {
-	env := &ProvisionEnv{IsRoot: false, CurrentUser: "tony"}
+	env := &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"}
 	baseIn := ProvisionInput{
 		Name: "compass-test", ServerDir: filepath.Join(t.TempDir(), "new"),
 		Supervisor: "systemd", Source: SourceZip, ZipPath: "/srv/zips/x.zip",
@@ -464,7 +464,7 @@ func TestProvisionApply_Tmux_HappyPath(t *testing.T) {
 	trail := newTestTrail(t)
 
 	p := &Provision{
-		Env:    &ProvisionEnv{IsRoot: false, CurrentUser: "tony"},
+		Env:    &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"},
 		Exec:   f.run,
 		Verify: func(ctx context.Context, addr string) error { return nil },
 		Trail:  trail,
@@ -536,7 +536,7 @@ func TestProvisionApply_Tmux_RollbackOnStartFailure(t *testing.T) {
 	trail := newTestTrail(t)
 
 	p := &Provision{
-		Env:    &ProvisionEnv{IsRoot: false, CurrentUser: "tony"},
+		Env:    &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"},
 		Exec:   f.run,
 		Verify: func(ctx context.Context, addr string) error { return nil },
 		Trail:  trail,
@@ -578,7 +578,7 @@ func TestProvisionApply_NoopWritesNothing(t *testing.T) {
 	}
 	f := &fakeExec{output: map[string][]byte{}} // has-session succeeds
 	p := &Provision{
-		Env:    &ProvisionEnv{IsRoot: false, CurrentUser: "tony"},
+		Env:    &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"},
 		Exec:   f.run,
 		Verify: func(ctx context.Context, addr string) error { return nil },
 	}
@@ -683,7 +683,7 @@ func TestProvisionApply_Systemd_NonRoot(t *testing.T) {
 	zipPath := makeServerZip(t, "bedrock-server-1.26.45.1.zip")
 	f := &fakeExec{output: map[string][]byte{}}
 	p := &Provision{
-		Env:    &ProvisionEnv{IsRoot: false, CurrentUser: "tony"},
+		Env:    &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"},
 		Exec:   f.run,
 		Verify: func(ctx context.Context, addr string) error { return nil },
 	}
@@ -729,7 +729,7 @@ func TestProvisionApply_VerifyRetry(t *testing.T) {
 	t.Run("succeeds on a later attempt", func(t *testing.T) {
 		attempts := 0
 		p := &Provision{
-			Env:            &ProvisionEnv{IsRoot: false, CurrentUser: "tony"},
+			Env:            &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"},
 			Exec:           f.run,
 			VerifyDeadline: 5 * time.Second,
 			VerifyInterval: 5 * time.Millisecond,
@@ -756,7 +756,7 @@ func TestProvisionApply_VerifyRetry(t *testing.T) {
 
 	t.Run("never succeeds -> incomplete, deployment left", func(t *testing.T) {
 		p := &Provision{
-			Env:            &ProvisionEnv{IsRoot: false, CurrentUser: "tony"},
+			Env:            &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"},
 			Exec:           f.run,
 			Verify:         func(ctx context.Context, addr string) error { return fmt.Errorf("refused") },
 			VerifyDeadline: 50 * time.Millisecond,
@@ -793,7 +793,7 @@ func TestProvisionApply_DownloadSuccessCleanup(t *testing.T) {
 	f := &fakeExec{output: map[string][]byte{}, fail: map[string]error{}}
 	f.fail["tmux has-session -t compass-test"] = errNotPresent
 	p := &Provision{
-		Env:    &ProvisionEnv{IsRoot: false, CurrentUser: "tony"},
+		Env:    &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"},
 		Exec:   f.run,
 		Fetch:  func(ctx context.Context, url string) (string, error) { downloaded = true; return zipPath, nil },
 		Verify: func(ctx context.Context, addr string) error { return nil },
@@ -828,7 +828,7 @@ func TestProvisionApply_DownloadError(t *testing.T) {
 	f := &fakeExec{output: map[string][]byte{}, fail: map[string]error{}}
 	f.fail["tmux has-session -t compass-test"] = errNotPresent // fresh: no session yet
 	p := &Provision{
-		Env:    &ProvisionEnv{IsRoot: false, CurrentUser: "tony"},
+		Env:    &ProvisionEnv{IsRoot: false, CurrentUser: "testuser"},
 		Exec:   f.run,
 		Fetch:  func(ctx context.Context, url string) (string, error) { return "", fmt.Errorf("connection reset") },
 		Verify: func(ctx context.Context, addr string) error { return nil },

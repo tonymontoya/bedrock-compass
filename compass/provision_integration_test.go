@@ -25,7 +25,7 @@ import (
 // fresh world the first launch generates the world, which is slow and variable,
 // and would make the test flaky. The pong logic is covered by the offline
 // VerifyRetry / happy-path tests; this e2e proves the real-world wiring.
-// Opt-in: built with -tags integration and shipped via make integ RIG_HOST=bds.
+// Opt-in: built with -tags integration and shipped via make integ RIG_HOST=<rig host>.
 func TestIntegration_Provision_Tmux_EndToEnd(t *testing.T) {
 	zipPath := envOr("COMPASS_PROV_ZIP", "/opt/minecraft/server/bedrock-server-1.26.45.1.zip")
 	if _, err := exec.LookPath("tmux"); err != nil {

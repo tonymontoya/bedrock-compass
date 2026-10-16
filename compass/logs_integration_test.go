@@ -12,7 +12,7 @@ import (
 // These tests exercise the Logs service (#8) against the scratch rig's real
 // journal (unit bedrock-compass-test on the test host). They self-skip when
 // the rig is not active and are opt-in: built with -tags integration and
-// shipped to the rig host (make integ RIG_HOST=bds).
+// shipped to the rig host (make integ RIG_HOST=<rig host>).
 
 func TestIntegration_Logs_SnapshotAndLiveTail(t *testing.T) {
 	skipIfRigDown(t)

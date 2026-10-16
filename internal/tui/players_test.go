@@ -55,7 +55,7 @@ func newPlayersRig(t *testing.T, f *playersFakeConsole, journalLines []string) *
 	}
 	jl := make([]string, len(journalLines))
 	for i, l := range journalLines {
-		jl[i] = "Aug 19 01:30:22 bds bedrock_server[4242]: " + l
+		jl[i] = "Aug 19 01:30:22 rig bedrock_server[4242]: " + l
 	}
 	j := &compass.Journal{Unit: "u"}
 	j.Exec = func(ctx context.Context, name string, args ...string) ([]byte, error) {
@@ -79,7 +79,7 @@ func TestPlayers_View_Online(t *testing.T) {
 	feedRoster(t, s,
 		[]compass.Player{
 			{Name: "brea", XUID: "1111111111111111"},
-			{Name: "tony", XUID: "2222222222222222"},
+			{Name: "player_one", XUID: "2222222222222222"},
 		}, 2, 15,
 		[]compass.RecentPlayer{
 			{Name: "brea", XUID: "1111111111111111", State: "connected", LastSeen: time.Date(2026, 8, 19, 1, 30, 22, 0, time.UTC)},
@@ -93,7 +93,7 @@ func TestPlayers_View_Online(t *testing.T) {
 		"Online (2 / 15 players online)",
 		"brea",
 		"xuid 1111111111111111",
-		"tony",
+		"player_one",
 		"Recently connected (2)",
 		"oldfriend",
 		"left",

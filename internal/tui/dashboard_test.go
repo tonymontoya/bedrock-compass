@@ -45,7 +45,7 @@ func evProvider(evs []compass.Event) func() []compass.Event {
 func sampleStatus() compass.Status {
 	return compass.Status{
 		State:     "running",
-		Name:      "MontoyaWorld",
+		Name:      "TestServer",
 		Version:   "1.26.43",
 		MOTD:      "Bedrock level",
 		Uptime:    time.Hour,
@@ -69,7 +69,7 @@ func TestDashboard_RendersTiles(t *testing.T) {
 	d := NewDashboard(host, nil)
 	d.Update(statusMsg(st))
 	v := d.View()
-	for _, want := range []string{"MontoyaWorld", "1.26.43", "Bedrock level", "3 / 15", "running", "12%"} {
+	for _, want := range []string{"TestServer", "1.26.43", "Bedrock level", "3 / 15", "running", "12%"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("View missing %q in:\n%s", want, v)
 		}
@@ -192,11 +192,11 @@ func TestApp_BroadcastsStatusToDashboard(t *testing.T) {
 	if dash.status != st {
 		t.Errorf("dashboard status = %+v, want %+v", dash.status, st)
 	}
-	if !strings.Contains(dash.View(), "MontoyaWorld") {
+	if !strings.Contains(dash.View(), "TestServer") {
 		t.Error("dashboard tiles missing the server name")
 	}
 	// status bar agrees with the tiles for the same snapshot
-	if !strings.Contains(renderStatus(st, 80), "MontoyaWorld") {
+	if !strings.Contains(renderStatus(st, 80), "TestServer") {
 		t.Error("status bar missing the server name")
 	}
 }

@@ -28,7 +28,7 @@ func TestCapture_ProvisionWizard(t *testing.T) {
 	capture("SYSTEMD PLAN (non-root, staged units + handoff)", func() *Server {
 		fe := &fakeExec{}
 		stack := &compass.Stack{Provision: &compass.Provision{
-			Env:    &compass.ProvisionEnv{IsRoot: false, CurrentUser: "tony"},
+			Env:    &compass.ProvisionEnv{IsRoot: false, CurrentUser: "testuser"},
 			Exec:   fe.run,
 			Verify: func(ctx context.Context, addr string) error { return errors.New("n/a") },
 		}}
@@ -39,7 +39,7 @@ func TestCapture_ProvisionWizard(t *testing.T) {
 		provType(s, "s") // systemd
 		provType(s, "z") // zip
 		provType(s, "/opt/minecraft/server/bedrock-server.zip")
-		provType(s, "tony")
+		provType(s, "testuser")
 		provType(s, "") // port empty = default 19132
 		if s.provIdx != pfComplete || s.provPlan == nil {
 			t.Fatalf("wizard did not reach the systemd plan: idx=%d plan=%v", s.provIdx, s.provPlan)

@@ -59,7 +59,7 @@ func TestTelemetry_FirstTickBaseline(t *testing.T) {
 	if st.Stale {
 		t.Error("running server must not be stale")
 	}
-	if st.Name != "MontoyaWorld" || st.Max != 15 || st.Online != 0 {
+	if st.Name != "TestServer" || st.Max != 15 || st.Online != 0 {
 		t.Errorf("server fields = %+v", st)
 	}
 	if st.CPUPct != 0 {

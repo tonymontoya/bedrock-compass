@@ -498,7 +498,7 @@ func writeFileAtomic(path string, data []byte) error {
 const defaultBedrockPort = 19132
 
 // firewallCommand builds the exact ufw command for blocking/unblocking ip on
-// the server's UDP port. ufw is preferred (present on bds). The command is
+// the server's UDP port. ufw is preferred when present on the host. The command is
 // always returned so it can be shown to the operator when we lack permission.
 func firewallCommand(action, ip string, port int) string {
 	if port <= 0 {

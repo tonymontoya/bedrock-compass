@@ -14,7 +14,7 @@ import (
 // self-skip when the rig is not active. The kick test uses a known-bad
 // gamertag: Bedrock answers with one of its no-match failure lines, which
 // verifies the full send → harvest → classify round-trip without needing a
-// real client connected (live-verified on bds 2026-08-19). The exact wording
+// real client connected (live-verified on the rig host 2026-08-19). The exact wording
 // varies by server version — "No targets matched selector" vs. "Could not
 // find player …" — so the test accepts either, mirroring classifyReply.
 

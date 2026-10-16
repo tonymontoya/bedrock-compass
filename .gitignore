@@ -1,5 +1,6 @@
 # --- private / local environment (never commit) ---
 local/
+ops/
 *.local.md
 *.local.yaml
 *.local.yml

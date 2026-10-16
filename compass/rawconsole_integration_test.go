@@ -13,7 +13,7 @@ import (
 // These tests exercise the RawConsole service (#12) against the scratch rig's
 // real console FIFO + journal. They self-skip when the rig is not active and
 // are opt-in: built with -tags integration and shipped to the rig host
-// (make integ RIG_HOST=bds). Only harmless, read-only commands are sent — the
+// (make integ RIG_HOST=<rig host>). Only harmless, read-only commands are sent — the
 // raw surface is being verified for round-trip fidelity and audit logging, not
 // for mutating the server.
 

@@ -45,23 +45,6 @@ func rigPort(t *testing.T) int {
 	return 19132
 }
 
-// prodPort reads the production server's UDP port (default 19132).
-func prodPort(t *testing.T) int {
-	t.Helper()
-	b, err := os.ReadFile("/home/tony/minecraft-bedrock/server.properties")
-	if err != nil {
-		return 19132
-	}
-	for _, line := range strings.Split(string(b), "\n") {
-		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "server-port="); ok {
-			if p, err := strconv.Atoi(v); err == nil && p > 0 {
-				return p
-			}
-		}
-	}
-	return 19132
-}
-
 // rigLifecycle wires the Lifecycle service over the scratch rig's real
 // supervisor and console, with a fresh audit trail.
 func rigLifecycle(t *testing.T) (*Lifecycle, *Trail) {
@@ -255,7 +238,7 @@ func TestIntegration_Lifecycle_Adopt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := &Config{Port: prodPort(t)} // the tool does not know this deployment yet
+	cfg := &Config{Port: rigPort(t)} // the tool does not know this deployment yet
 	lc := NewLifecycle(cfg, nil, nil, trail)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)

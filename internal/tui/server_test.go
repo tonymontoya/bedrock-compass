@@ -256,7 +256,7 @@ func newProvRig(t *testing.T, verifyErr error) (*compass.Stack, *fakeExec) {
 	}}
 	return &compass.Stack{
 		Provision: &compass.Provision{
-			Env:    &compass.ProvisionEnv{IsRoot: false, CurrentUser: "tony"},
+			Env:    &compass.ProvisionEnv{IsRoot: false, CurrentUser: "testuser"},
 			Exec:   fe.run,
 			Verify: func(ctx context.Context, addr string) error { return verifyErr },
 		},
@@ -457,7 +457,7 @@ func TestServer_Prov_ApplyIncompleteShowsCommands(t *testing.T) {
 	provType(s, "s")
 	provType(s, "z")
 	provType(s, zipPath)
-	provType(s, "tony")
+	provType(s, "testuser")
 	provType(s, "")
 
 	s.Update(enterMsg())
