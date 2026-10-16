@@ -219,8 +219,14 @@ func TestSupervisor_Systemd_UptimeIsMicroseconds(t *testing.T) {
 	if !ok {
 		t.Skip("monotonic clock unavailable")
 	}
-	const elapsedUS = int64(1000 * 1e6) // the unit entered active 1000s ago
-	aem := nowNS/1000 - elapsedUS       // µs, matching systemd's units
+	// The fixture timestamp must be in the past. A GitHub runner is a freshly booted
+	// kernel, so its monotonic clock can be under 1000 s old — clamping keeps the test
+	// meaningful in any environment (a ns/µs misread still lands far outside tolerance).
+	elapsed := 1000 * time.Second
+	if headroom := time.Duration(nowNS) / 2; headroom < elapsed {
+		elapsed = headroom
+	}
+	aem := (nowNS - int64(elapsed)) / 1000 // µs, matching systemd's units
 	f := &fakeExec{output: map[string][]byte{}}
 	f.output["systemctl"] = []byte("ActiveState=active\nMainPID=4242\n" +
 		fmt.Sprintf("ActiveEnterTimestampMonotonic=%d\n", aem))
@@ -233,9 +239,13 @@ func TestSupervisor_Systemd_UptimeIsMicroseconds(t *testing.T) {
 	if !st.Active || st.PID != 4242 {
 		t.Fatalf("status = %+v, want active pid 4242", st)
 	}
-	want := 1000 * time.Second
-	if d := st.Uptime - want; d < -time.Minute || d > time.Minute {
-		t.Errorf("Uptime = %v, want ~%v (±1m); a value this far off means the µs/ns unit is misread", st.Uptime, want)
+	tolerance := elapsed / 4
+	if elapsed < time.Minute {
+		tolerance = time.Second
+	}
+	if d := st.Uptime - elapsed; d < -tolerance || d > tolerance {
+		t.Errorf("Uptime = %v, want ~%v (±%v); a value this far off means the µs/ns unit is misread",
+			st.Uptime, elapsed, tolerance)
 	}
 }
 
